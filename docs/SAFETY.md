@@ -5,7 +5,7 @@
 - The toolkit's JSON baseline is not a full system image.
 - Do not disable Windows Defender, Windows Update, RPC, DHCP, DNS, Plug and Play, Task Scheduler, or driver services.
 - Do not disable the pagefile on systems with 4 GB RAM.
-- The custom pagefile feature is restricted to C: and requires Windows to report the OS disk as SSD. It rejects HDD and unknown media types; users of RAID/Storage controllers must verify the disk type separately.
+- The custom pagefile feature is restricted to C:. It checks Get-Disk.MediaType, Get-PhysicalDisk.MediaType, and Win32_DiskDrive model information. Any explicit HDD indication is rejected. If Windows reports Unspecified/unavailable (common with some SATA/AHCI drivers), the user must inspect the displayed model and physically confirm SSD by typing `CONFIRM SSD`; SATA bus type alone is not proof of SSD. This manual confirmation is the user's responsibility.
 - Custom pagefile size is fixed (Initial Size = Maximum Size), limited to 1,000-24,000 MB, and requires at least the requested size plus 2,048 MB free on C:. Only configure it after reviewing the current pagefile settings and confirming the change. Restart is required.
 - A pagefile extends the commit limit; it does not add physical RAM or match RAM performance. Pagefile sizing depends on peak commit and crash dump requirements; System Managed remains the default recommendation.
 - Do not use RAM cleaner utilities or registry cleaners.

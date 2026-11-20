@@ -890,48 +890,92 @@ function Remove-SelectedApps {
     Write-Host "Catatan: log menyimpan identitas paket, bukan file instalasi atau backup aplikasi."
 }
 
-function Show-EdgeComponents {
-    Write-Host "`n========== MICROSOFT EDGE / WEBVIEW2 ==========" -ForegroundColor Cyan
-    $roots = @(
-        (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe"),
-        (Join-Path ${env:ProgramFiles(x86)} "Microsoft\Edge\Application\msedge.exe")
+function Get-EdgeUpdateInventory {
+    $serviceNames = @("edgeupdate", "edgeupdatem", "MicrosoftEdgeElevationService")
+    $services = @(
+        Get-CimInstance Win32_Service -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $serviceNames }
+    )
+
+    $tasks = @()
+    try {
+        $tasks = @(
+            Get-ScheduledTask -ErrorAction Stop |
+                Where-Object { $_.TaskPath -like "\Microsoft\EdgeUpdate\*" }
+        )
+    } catch {
+        Write-Host "Daftar Scheduled Tasks Edge Update tidak dapat dibaca." -ForegroundColor Yellow
+    }
+
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $webViewRoots = @(
+        (Join-Path $env:ProgramFiles "Microsoft\EdgeWebView\Application"),
+        (Join-Path $programFilesX86 "Microsoft\EdgeWebView\Application")
     ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
 
-    if ($roots.Count -gt 0) {
-        $edgeRows = foreach ($path in $roots) {
+    [pscustomobject]@{
+        Services = $services
+        Tasks = $tasks
+        WebView2Paths = @($webViewRoots)
+    }
+}
+
+function Show-EdgeComponents {
+    Write-Host ""
+    Write-Host "========== MICROSOFT EDGE / EDGE UPDATE ==========" -ForegroundColor Cyan
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $edgePaths = @(
+        (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe"),
+        (Join-Path $programFilesX86 "Microsoft\Edge\Application\msedge.exe"),
+        (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\Application\msedge.exe")
+    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+    if ($edgePaths.Count -gt 0) {
+        $edgeRows = foreach ($path in $edgePaths) {
             $version = (Get-Item -LiteralPath $path).VersionInfo.ProductVersion
             [pscustomobject]@{ Component="Microsoft Edge"; Version=$version; Path=$path }
         }
         $edgeRows | Format-Table -AutoSize
     } else {
-        Write-Host "Microsoft Edge executable tidak ditemukan pada lokasi standar."
+        Write-Host "Browser Microsoft Edge tidak ditemukan pada lokasi standar."
     }
 
-    $webViewRoots = @(
-        (Join-Path $env:ProgramFiles "Microsoft\EdgeWebView\Application"),
-        (Join-Path ${env:ProgramFiles(x86)} "Microsoft\EdgeWebView\Application")
-    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
-    if ($webViewRoots.Count -gt 0) {
-        foreach ($path in $webViewRoots) {
-            $versions = Get-ChildItem -LiteralPath $path -Directory -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match '^\d+(\.\d+){2,3}$' } |
-                Select-Object -ExpandProperty Name
-            Write-Host "WebView2 Runtime: $($versions -join ', ') [$path]"
-        }
+    $inventory = Get-EdgeUpdateInventory
+    Write-Host ""
+    Write-Host "Layanan Edge Update:" -ForegroundColor Cyan
+    if ($inventory.Services.Count -gt 0) {
+        $inventory.Services |
+            Select-Object Name, State, StartMode, PathName |
+            Format-Table -Wrap -AutoSize
+    } else {
+        Write-Host "Layanan Edge Update tidak ditemukan."
+    }
+
+    Write-Host "Scheduled Tasks Edge Update:" -ForegroundColor Cyan
+    if ($inventory.Tasks.Count -gt 0) {
+        $inventory.Tasks |
+            Select-Object TaskName, TaskPath, State |
+            Format-Table -AutoSize
+    } else {
+        Write-Host "Scheduled Tasks Edge Update tidak ditemukan."
+    }
+
+    if ($inventory.WebView2Paths.Count -gt 0) {
+        Write-Host "WebView2 Runtime terdeteksi:" -ForegroundColor Yellow
+        $inventory.WebView2Paths | ForEach-Object { Write-Host "  $_" }
+        Write-Host "WebView2 dipertahankan. Menonaktifkan Edge Update juga menghentikan pembaruan keamanan WebView2." -ForegroundColor Yellow
     } else {
         Write-Host "WebView2 Runtime tidak terdeteksi pada lokasi standar."
     }
-
-    Write-Host "Edge dan WebView2 tidak dihapus oleh toolkit. Keduanya dapat menjadi dependensi fitur Windows dan aplikasi lain."
 }
 
-
 function Uninstall-MicrosoftEdgeAdvanced {
-    Write-Host "UNINSTALL MICROSOFT EDGE (ADVANCED)" -ForegroundColor Yellow
-    Write-Host "Tindakan ini menghapus browser Edge, bukan WebView2 Runtime. Aplikasi/fitur Windows tertentu dapat bergantung pada Edge." -ForegroundColor Yellow
-    Write-Host "Operasi tidak dijamin didukung pada semua build/region Windows dan tidak dapat dipulihkan oleh baseline toolkit." -ForegroundColor Yellow
+    Write-Host "HAPUS MICROSOFT EDGE DAN NONAKTIFKAN EDGE UPDATE" -ForegroundColor Yellow
+    Write-Host "Toolkit akan menjalankan uninstaller Edge, menghentikan/menonaktifkan layanan Edge Update, dan menonaktifkan Scheduled Tasks Edge Update." -ForegroundColor Yellow
+    Write-Host "WebView2 Runtime dan file updater bersama tidak dihapus untuk menghindari kerusakan aplikasi lain." -ForegroundColor Yellow
+    Write-Host "Fitur ini tidak didukung pada semua build Windows dan tidak dapat dipulihkan oleh baseline toolkit." -ForegroundColor Yellow
 
-    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
     $candidateRoots = @(
         (Join-Path $programFilesX86 "Microsoft\Edge\Application"),
         (Join-Path $env:ProgramFiles "Microsoft\Edge\Application"),
@@ -946,36 +990,147 @@ function Uninstall-MicrosoftEdgeAdvanced {
         foreach ($versionDir in $versions) {
             $setup = Join-Path $versionDir.FullName "Installer\setup.exe"
             if (Test-Path -LiteralPath $setup) {
-                $setups += [pscustomobject]@{ Setup=$setup; SystemLevel=($root -notlike "$env:LOCALAPPDATA*"); Version=$versionDir.Name }
+                $setups += [pscustomobject]@{
+                    Setup = $setup
+                    SystemLevel = ($root -notlike "$env:LOCALAPPDATA*")
+                    Version = $versionDir.Name
+                }
                 break
             }
         }
     }
-    if ($setups.Count -eq 0) {
-        Write-Host "Installer Edge tidak ditemukan. Tidak ada perubahan dilakukan." -ForegroundColor Yellow
+    $setups = @($setups | Sort-Object SystemLevel -Descending -Unique)
+    $inventory = Get-EdgeUpdateInventory
+
+    Write-Host ""
+    Write-Host "Installer Edge yang ditemukan: $($setups.Count)"
+    foreach ($item in $setups) {
+        Write-Host "  Versi $($item.Version): $($item.Setup)"
+    }
+    Write-Host ""
+    Write-Host "Layanan Edge Update ditemukan: $($inventory.Services.Count)"
+    $inventory.Services | Format-Table Name, State, StartMode -AutoSize
+    Write-Host "Scheduled Tasks Edge Update ditemukan: $($inventory.Tasks.Count)"
+    $inventory.Tasks | Format-Table TaskName, TaskPath, State -AutoSize
+
+    if ($inventory.WebView2Paths.Count -gt 0) {
+        Write-Host ""
+        Write-Host "PERINGATAN: WebView2 terdeteksi dan akan dipertahankan." -ForegroundColor Red
+        Write-Host "Menonaktifkan Edge Update berarti WebView2 tidak lagi menerima pembaruan otomatis." -ForegroundColor Red
+    }
+
+    $edgeProcesses = @(Get-Process -Name "msedge" -ErrorAction SilentlyContinue)
+    if ($edgeProcesses.Count -gt 0) {
+        Write-Host "Tutup semua jendela Microsoft Edge terlebih dahulu. Tidak ada proses yang akan dipaksa berhenti." -ForegroundColor Yellow
         return
     }
-    $selected = $setups | Select-Object -First 1
-    Write-Host "Versi terdeteksi: $($selected.Version)"
-    Write-Host "Installer: $($selected.Setup)"
-    $confirm = Read-Host "Jika memahami risikonya, ketik UNINSTALL EDGE untuk melanjutkan"
-    if ($confirm -cne "UNINSTALL EDGE") { Write-Host "Dibatalkan."; return }
 
-    try {
-        $arguments = @('--uninstall', '--verbose-logging', '--force-uninstall')
-        if ($selected.SystemLevel) { $arguments += '--system-level' }
-        $process = Start-Process -FilePath $selected.Setup -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
-        Write-Log "Edge uninstall process exited with code $($process.ExitCode)."
-        if ($process.ExitCode -eq 0) {
-            Write-Host "Perintah uninstall Edge selesai. Verifikasi ulang melalui menu audit dan restart Windows." -ForegroundColor Green
-        } else {
-            Write-Host "Installer mengembalikan exit code $($process.ExitCode). Edge mungkin masih terpasang atau kebijakan Windows menolak uninstall." -ForegroundColor Yellow
-        }
-        Write-Host "WebView2 Runtime sengaja tidak dihapus."
-    } catch {
-        Write-Host "Uninstall Edge gagal: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Log "Edge uninstall failed: $($_.Exception.Message)"
+    if ($setups.Count -eq 0 -and $inventory.Services.Count -eq 0 -and $inventory.Tasks.Count -eq 0) {
+        Write-Host "Installer, layanan, dan Scheduled Tasks Edge Update tidak ditemukan. Tidak ada perubahan dilakukan." -ForegroundColor Yellow
+        return
     }
+
+    $confirm = Read-Host "Ketik REMOVE EDGE AND UPDATE untuk melanjutkan"
+    if ($confirm -cne "REMOVE EDGE AND UPDATE") {
+        Write-Host "Dibatalkan. Tidak ada perubahan dilakukan." -ForegroundColor Yellow
+        return
+    }
+
+    New-Item -Path $Root -ItemType Directory -Force | Out-Null
+    $backupPath = Join-Path $Root "edge-update-backup.json"
+    $backup = [pscustomobject]@{
+        Created = (Get-Date).ToString("o")
+        Services = @($inventory.Services | Select-Object Name, StartMode, State)
+        Tasks = @($inventory.Tasks | Select-Object TaskName, TaskPath, State)
+        Note = "Snapshot kondisi awal Edge Update. Toolkit tidak menghapus service atau file updater."
+    }
+    $backup | ConvertTo-Json -Depth 5 | Set-Content -Path $backupPath -Encoding UTF8
+
+    foreach ($service in $inventory.Services) {
+        try {
+            if ($service.State -eq "Running") {
+                Stop-Service -Name $service.Name -Force -ErrorAction Stop
+            }
+        } catch {
+            Write-Host "Gagal menghentikan layanan $($service.Name): $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Log "Edge Update service stop failed: $($service.Name) - $($_.Exception.Message)"
+        }
+
+        try {
+            Set-Service -Name $service.Name -StartupType Disabled -ErrorAction Stop
+            Write-Host "Layanan dinonaktifkan: $($service.Name)" -ForegroundColor Green
+            Write-Log "Edge Update service disabled: $($service.Name)"
+        } catch {
+            Write-Host "Gagal menonaktifkan layanan $($service.Name): $($_.Exception.Message)" -ForegroundColor Red
+            Write-Log "Edge Update service disable failed: $($service.Name) - $($_.Exception.Message)"
+        }
+    }
+
+    foreach ($task in $inventory.Tasks) {
+        try {
+            Disable-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop | Out-Null
+            Write-Host "Scheduled Task dinonaktifkan: $($task.TaskPath)$($task.TaskName)" -ForegroundColor Green
+            Write-Log "Edge Update task disabled: $($task.TaskPath)$($task.TaskName)"
+        } catch {
+            Write-Host "Gagal menonaktifkan task $($task.TaskName): $($_.Exception.Message)" -ForegroundColor Red
+            Write-Log "Edge Update task disable failed: $($task.TaskName) - $($_.Exception.Message)"
+        }
+    }
+
+    if ($setups.Count -gt 0) {
+        foreach ($selected in $setups) {
+            try {
+                $arguments = @("--uninstall", "--verbose-logging", "--force-uninstall")
+                if ($selected.SystemLevel) { $arguments += "--system-level" }
+                $process = Start-Process -FilePath $selected.Setup -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
+                Write-Log "Edge uninstall $($selected.Version) exited with code $($process.ExitCode)."
+                if ($process.ExitCode -eq 0) {
+                    Write-Host "Perintah uninstall Edge versi $($selected.Version) selesai." -ForegroundColor Green
+                } else {
+                    Write-Host "Uninstaller Edge versi $($selected.Version) menghasilkan exit code $($process.ExitCode)." -ForegroundColor Yellow
+                }
+            } catch {
+                Write-Host "Uninstall Edge gagal: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Log "Edge uninstall failed: $($_.Exception.Message)"
+            }
+        }
+    } else {
+        Write-Host "Installer Edge tidak ditemukan. Pembersihan layanan dan Scheduled Tasks tetap diproses." -ForegroundColor Yellow
+    }
+
+    Start-Sleep -Seconds 2
+    $remainingEdge = @(
+        (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe"),
+        (Join-Path $programFilesX86 "Microsoft\Edge\Application\msedge.exe"),
+        (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\Application\msedge.exe")
+    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+    $finalInventory = Get-EdgeUpdateInventory
+    Write-Host ""
+    Write-Host "========== HASIL PEMBERSIHAN EDGE ==========" -ForegroundColor Cyan
+    if ($remainingEdge.Count -eq 0) {
+        Write-Host "Browser Edge tidak ditemukan pada lokasi standar." -ForegroundColor Green
+    } else {
+        Write-Host "Browser Edge masih terdeteksi. Windows atau kebijakan perangkat mungkin menolak uninstall." -ForegroundColor Red
+        $remainingEdge | ForEach-Object { Write-Host "  $_" }
+    }
+
+    if (@($finalInventory.Services | Where-Object { $_.StartMode -ne "Disabled" }).Count -eq 0) {
+        Write-Host "Layanan Edge Update yang terdeteksi sudah Disabled." -ForegroundColor Green
+    } else {
+        Write-Host "Masih ada layanan Edge Update yang belum Disabled:" -ForegroundColor Red
+        $finalInventory.Services | Where-Object { $_.StartMode -ne "Disabled" } | Format-Table Name, State, StartMode -AutoSize
+    }
+
+    if (@($finalInventory.Tasks | Where-Object { $_.State -ne "Disabled" }).Count -eq 0) {
+        Write-Host "Scheduled Tasks Edge Update yang terdeteksi sudah Disabled." -ForegroundColor Green
+    } else {
+        Write-Host "Masih ada Scheduled Tasks Edge Update yang aktif:" -ForegroundColor Red
+        $finalInventory.Tasks | Where-Object { $_.State -ne "Disabled" } | Format-Table TaskName, TaskPath, State -AutoSize
+    }
+
+    Write-Host "WebView2 dan file updater bersama tetap dipertahankan. Snapshot kondisi awal: $backupPath" -ForegroundColor Yellow
+    Write-Host "Restart Windows, lalu periksa kembali melalui menu 17." -ForegroundColor Yellow
 }
 
 

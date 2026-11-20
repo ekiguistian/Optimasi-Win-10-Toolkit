@@ -41,6 +41,7 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 20 | Atur Memori Virtual SSD - Atur ukuran pagefile di SSD | Mengatur pagefile tetap pada C: setelah pemeriksaan SSD, ruang kosong, dan konfirmasi. Restart diperlukan. |
 | 21 | Alat Tambahan - Buka fitur diagnosis lainnya | Membuka submenu diagnosis, termasuk pemeriksaan `svchost.exe` dan layanan terkait. |
 | 22 | Restart - Restart paksa komputer | Memulai ulang komputer dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Data yang belum disimpan dapat hilang. |
+| 23 | Windows Update - Nonaktifkan atau pulihkan update otomatis | Menonaktifkan kebijakan update otomatis dan layanan Windows Update/Update Orchestrator setelah konfirmasi; dapat dipulihkan dari snapshot konfigurasi awal. |
 | 0 | Keluar - Tutup program | Menutup toolkit. |
 
 ## Persyaratan
@@ -109,6 +110,15 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 10. Gunakan menu **22** hanya jika memang perlu restart paksa. Simpan semua pekerjaan terlebih dahulu karena aplikasi akan ditutup tanpa dialog penyimpanan.
 
 
+### Windows Update (menu 23)
+
+- Pilihan **1** menonaktifkan update otomatis melalui kebijakan `NoAutoUpdate`, lalu mencoba menghentikan dan menonaktifkan layanan `wuauserv` (Windows Update) serta `UsoSvc` (Update Orchestrator).
+- Sebelum perubahan, kondisi awal nilai registry, startup type, dan status kedua layanan disimpan ke `C:\ProgramData\Optimasi-Windows-10-Toolkit\windows-update-backup.json`.
+- Konfirmasi wajib: `DISABLE WINDOWS UPDATE`. Fitur ini tidak menonaktifkan `WaaSMedicSvc` dan tidak mengubah Windows Defender.
+- Pilihan **2** memulihkan nilai registry, startup type, dan status layanan dari backup dengan konfirmasi `RESTORE WINDOWS UPDATE`.
+- Windows Update Medic/servicing Windows dapat mengaktifkan kembali layanan pada kondisi tertentu. Hak akses atau proteksi Windows juga dapat menolak perubahan layanan; periksa hasil yang ditampilkan, jangan menganggap semua komponen berhasil dinonaktifkan.
+- **Risiko keamanan:** selama update otomatis dimatikan, Windows tidak menerima patch keamanan dan perbaikan otomatis. Gunakan hanya sementara, cek pembaruan secara manual, dan pulihkan konfigurasi setelah kebutuhan selesai.
+- Fitur ini belum diuji langsung pada perangkat Windows fisik. Backup fitur ini terpisah dari menu 12 (baseline).
 ### Restart paksa Windows (menu 22)
 
 - Menu ini menjalankan `shutdown.exe /r /f /t 0` setelah pengguna mengetik `RESTART FORCE`.
@@ -160,7 +170,7 @@ Restore **tidak** membatalkan uninstall aplikasi UWP, mengembalikan installer ya
 
 ## Prinsip keselamatan
 
-Toolkit tidak dimaksudkan untuk menonaktifkan komponen inti Windows. Jangan menonaktifkan Windows Defender/Windows Security, Windows Update, RPC, DHCP Client, DNS Client, Plug and Play, Task Scheduler, atau service driver/perangkat keras.
+Toolkit tidak menganjurkan penonaktifan permanen komponen inti Windows. Jangan menonaktifkan Windows Defender/Windows Security, RPC, DHCP Client, DNS Client, Plug and Play, Task Scheduler, atau service driver/perangkat keras. Menu 23 menyediakan kontrol Windows Update secara opsional dan sementara dengan peringatan risiko keamanan serta fitur pemulihan.
 
 - Jangan menonaktifkan pagefile, khususnya pada perangkat RAM 4 GB.
 - Jangan menghapus Microsoft Store, framework/runtime, atau Microsoft Edge WebView2.
@@ -180,6 +190,7 @@ Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).
 
 - [x] Fitur menu **1–21** telah diuji langsung oleh pengguna; seluruhnya dilaporkan berjalan lancar.
 - [ ] Menu **22 — Restart paksa** belum dikonfirmasi pengujiannya. Fitur ini menutup aplikasi tanpa dialog penyimpanan dan berisiko menghilangkan data yang belum disimpan.
+- [ ] Menu **23 — Windows Update** belum diuji langsung pada perangkat fisik. Verifikasi penghentian layanan, kebijakan, dan pemulihan pada VM/snapshot sebelum penggunaan rutin.
 - [x] Validasi parser Windows PowerShell 5.1 dan PowerShell 7 pada GitHub Actions.
 - [x] Pemeriksaan PSScriptAnalyzer pada GitHub Actions.
 - [ ] Uji lintas perangkat dan vendor laptop.

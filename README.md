@@ -20,28 +20,28 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | Menu | Fitur | Fungsi |
 |---:|---|---|
 | 1 | Ringkasan RAM | Menampilkan informasi memori fisik dan penggunaan RAM saat ini. |
-| 2 | Service aktif | Menampilkan daftar service Windows yang sedang berjalan untuk audit. |
-| 3 | Service opsional | Menampilkan kandidat service yang dapat dievaluasi berdasarkan kebutuhan perangkat. |
-| 4 | Nonaktifkan service | Menonaktifkan service opsional yang dipilih secara manual. Gunakan hanya jika memahami dampaknya. |
-| 5 | Set service Manual | Mengubah startup type service terpilih menjadi Manual, sebagai alternatif yang lebih konservatif daripada Disabled. |
+| 2 | Layanan aktif | Menampilkan daftar service Windows yang sedang berjalan untuk audit. |
+| 3 | Layanan opsional | Menampilkan kandidat service yang dapat dievaluasi berdasarkan kebutuhan perangkat. |
+| 4 | Matikan layanan | Menonaktifkan service opsional yang dipilih secara manual. Gunakan hanya jika memahami dampaknya. |
+| 5 | Atur layanan Manual | Mengubah startup type service terpilih menjadi Manual, sebagai alternatif yang lebih konservatif daripada Disabled. |
 | 6 | Aplikasi UWP | Menampilkan aplikasi UWP dan informasi pengaturan aktivitas background yang dapat dibaca. |
-| 7 | Atur background UWP | Mengubah izin background untuk aplikasi yang didukung pada akun pengguna saat ini. Tidak mengendalikan semua aplikasi desktop. |
+| 7 | Aplikasi latar | Mengubah izin background untuk aplikasi yang didukung pada akun pengguna saat ini. Tidak mengendalikan semua aplikasi desktop. |
 | 8 | Aplikasi startup | Menampilkan program startup yang terdeteksi melalui WMI/CIM. |
-| 9 | Proses pemakai RAM | Mengelompokkan proses berdasarkan nama dan menjumlahkan Working Set; menandai kelompok di atas 250 MB untuk diperiksa dan 500 MB sebagai tinggi. Ambang ini indikatif, bukan diagnosis malware. |
+| 9 | Proses boros RAM | Mengelompokkan proses berdasarkan nama dan menjumlahkan Working Set; menandai kelompok di atas 250 MB untuk diperiksa dan 500 MB sebagai tinggi. Ambang ini indikatif, bukan diagnosis malware. |
 | 10 | Optimasi aman | Menerapkan pengaturan terbatas terkait aplikasi background, Game DVR, visual effects, dan pagefile. Menampilkan jumlah tindakan berhasil, persentase tindakan sukses, serta perubahan estimasi RAM terpakai sebelum/sesudah. |
 
-| 11 | Pagefile otomatis | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. Disarankan untuk perangkat dengan RAM terbatas; jangan menonaktifkan pagefile. |
-| 12 | Pulihkan baseline | Memulihkan pengaturan registry, service yang dicatat, dan konfigurasi pagefile dari baseline yang dibuat toolkit. Bukan full system restore. |
+| 11 | Memori virtual otomatis | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. Disarankan untuk perangkat dengan RAM terbatas; jangan menonaktifkan pagefile. |
+| 12 | Pulihkan pengaturan | Memulihkan pengaturan registry, service yang dicatat, dan konfigurasi pagefile dari baseline yang dibuat toolkit. Bukan full system restore. |
 | 13 | Laporan sistem | Mengekspor ringkasan informasi sistem untuk kebutuhan troubleshooting. |
-| 14 | Folder backup dan log | Membuka direktori penyimpanan baseline dan log toolkit. |
-| 15 | Katalog aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
+| 14 | Folder backup / log | Membuka direktori penyimpanan baseline dan log toolkit. |
+| 15 | Aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
 | 16 | Hapus aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
-| 17 | Audit Edge / WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
+| 17 | Cek Edge / WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
 | 18 | Kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
-| 19 | Hapus Microsoft Edge | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
-| 20 | Atur pagefile SSD | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
+| 19 | Hapus Edge | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
+| 20 | Atur memori virtual SSD | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
 | 21 | Tools tambahan | Membuka submenu diagnostik, termasuk pemeriksaan RAM `svchost.exe`, PID, layanan, dan lokasi executable. Pemeriksaan bersifat read-only. |
-| 22 | Restart paksa Windows | Memulai ulang Windows dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Aplikasi yang belum menyimpan data akan kehilangan perubahan. |
+| 22 | Restart paksa | Memulai ulang Windows dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Aplikasi yang belum menyimpan data akan kehilangan perubahan. |
 | 0 | Keluar | Menutup toolkit. |
 
 ## Persyaratan
@@ -116,7 +116,7 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 - Parameter `/f` memaksa aplikasi menutup dan dapat menyebabkan data yang belum disimpan hilang. Simpan pekerjaan terlebih dahulu.
 - Jangan gunakan sebagai pengganti restart normal bila aplikasi masih memiliki pekerjaan terbuka.
 
-### Pemeriksaan svchost.exe (menu 21 → 1)
+### Cek RAM svchost.exe (menu 21 → 1)
 
 - Daftar proses `svchost.exe` diurutkan berdasarkan Working Set dan menampilkan PID, RAM (MB), jumlah layanan, nama layanan, serta penanda indikatif.
 - Masukkan PID untuk melihat executable path, command line, dan rincian nama layanan, display name, status, serta startup type.

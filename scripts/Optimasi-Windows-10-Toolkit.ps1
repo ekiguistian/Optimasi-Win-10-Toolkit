@@ -132,17 +132,25 @@ function New-Baseline {
 
     $computer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
     $pagefileSnapshots = @()
+    $pagefileSettingsCaptured = [bool]$computer.AutomaticManagedPagefile
     if (-not $computer.AutomaticManagedPagefile) {
-        $pagefileSnapshots = @(
-            Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue |
-                Select-Object Name, InitialSize, MaximumSize
-        )
+        try {
+            $pagefileSnapshots = @(
+                Get-CimInstance Win32_PageFileSetting -ErrorAction Stop |
+                    Select-Object Name, InitialSize, MaximumSize
+            )
+            $pagefileSettingsCaptured = $true
+        } catch {
+            $pagefileSettingsCaptured = $false
+            Write-Host "Konfigurasi pagefile manual tidak dapat dibaca; restore pagefile manual tidak akan dilakukan dari baseline ini." -ForegroundColor Yellow
+        }
     }
 
     $baseline = [pscustomobject]@{
         Created=(Get-Date).ToString("o")
         ComputerName=$env:COMPUTERNAME
         AutomaticManagedPagefile=[bool]$computer.AutomaticManagedPagefile
+        PagefileSettingsCaptured=$pagefileSettingsCaptured
         PagefileSettings=$pagefileSnapshots
         Services=$serviceSnapshots
         Registry=$registrySnapshots
@@ -433,8 +441,8 @@ function Restore-Baseline {
             Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$true } -ErrorAction Stop | Out-Null
         } else {
             Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$false } -ErrorAction Stop | Out-Null
-            if ($baseline.PSObject.Properties.Name -contains "PagefileSettings") {
-                foreach ($currentSetting in @(Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue)) {
+            if (($baseline.PSObject.Properties.Name -contains "PagefileSettingsCaptured") -and [bool]$baseline.PagefileSettingsCaptured) {
+                foreach ($currentSetting in @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop)) {
                     Invoke-CimMethod -InputObject $currentSetting -MethodName Delete -ErrorAction Stop | Out-Null
                 }
                 foreach ($setting in @($baseline.PagefileSettings)) {
@@ -449,7 +457,7 @@ function Restore-Baseline {
                     }
                 }
             } else {
-                Write-Host "Baseline lama tidak menyimpan ukuran pagefile manual; ukuran lama tidak dapat dipastikan." -ForegroundColor Yellow
+                Write-Host "Baseline tidak memiliki snapshot pagefile manual yang valid; pengaturan manual saat ini tidak diubah." -ForegroundColor Yellow
             }
         }
 

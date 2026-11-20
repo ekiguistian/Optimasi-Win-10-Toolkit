@@ -11,4 +11,5 @@
 - Added optimization action success percentage and immediate before/after RAM usage estimate.
 - Excluded protected/non-removable Appx packages such as XboxGameCallableUI from the uninstall catalog.
 - Added an explicit-confirmation advanced Edge uninstaller that preserves WebView2 and documents restore limitations.
-- Added custom fixed-size pagefile configuration restricted to a confirmed SSD-backed C: drive, with 1,000-24,000 MB validation, free-space check, baseline capture, confirmation, and rollback attempt.
+- Added custom fixed-size pagefile configuration restricted to SSD-backed C:, with 1,000-24,000 MB validation, free-space check, baseline capture, confirmation, and rollback attempt.
+- Improved SSD detection using Get-Disk, Get-PhysicalDisk, and Win32_DiskDrive model information. Explicit HDD evidence is rejected; Unspecified media can proceed only after an explicit user physical SSD confirmation.

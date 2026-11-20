@@ -73,6 +73,7 @@ function Get-RegistrySnapshot {
 }
 
 function Set-RegistryValue {
+    [CmdletBinding()]
     param([string]$Path, [string]$Name, $Value, [string]$Kind)
     if (-not (Test-Path -LiteralPath $Path)) {
         New-Item -Path $Path -Force | Out-Null

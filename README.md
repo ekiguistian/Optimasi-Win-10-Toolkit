@@ -4,6 +4,8 @@ Toolkit berbasis **Windows PowerShell 5.1** untuk membantu pengguna laptop/PC de
 
 > **Status: versi awal / experimental.** Belum dinyatakan siap produksi. Uji pada perangkat cadangan atau setelah membuat System Restore Point. Baca script dan pahami setiap perubahan sebelum menjalankan fitur yang mengubah konfigurasi Windows.
 
+> **Status integrasi launcher:** file BAT dengan auto-UAC dan dokumentasi pengguna sudah masuk ke branch `main`. Namun, file engine `scripts/Optimasi-Windows-10-Toolkit.ps1` belum tersedia di branch tersebut. Launcher akan menampilkan error file tidak ditemukan sampai engine ditambahkan. Jangan distribusikan sebagai paket siap pakai sebelum file engine dan pengujian Windows PowerShell 5.1 selesai.
+
 ## Tujuan proyek
 
 - Mengidentifikasi proses, service, aplikasi UWP, dan program startup yang menggunakan sumber daya.

@@ -40,6 +40,7 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 18 | Laporan kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
 | 19 | Uninstall Microsoft Edge (advanced) | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
 | 20 | Custom Virtual Memory (SSD C: only) | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
+| 21 | Tools Tambahan | Membuka submenu diagnostik lanjutan, termasuk pemeriksaan konsumsi RAM setiap proses `svchost.exe`, PID, jumlah layanan, daftar nama layanan, command line, dan lokasi executable. Pemeriksaan bersifat read-only. |
 | 0 | Keluar | Menutup toolkit. |
 
 ## Persyaratan
@@ -106,6 +107,14 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 8. Bandingkan kembali Available Memory, proses pemakai RAM, CPU, aktivitas disk, dan responsivitas. Jangan menilai hasil hanya dari angka Used RAM.
 9. Jika terjadi masalah, gunakan menu **12** untuk memulihkan bagian konfigurasi yang tercakup dalam baseline. Jika Windows mengalami masalah serius, gunakan System Restore atau backup sistem.
 
+
+### Pemeriksaan svchost.exe (menu 21 → 1)
+
+- Daftar proses `svchost.exe` diurutkan berdasarkan Working Set dan menampilkan PID, RAM (MB), jumlah layanan, nama layanan, serta penanda indikatif.
+- Masukkan PID untuk melihat executable path, command line, dan rincian nama layanan, display name, status, serta startup type.
+- Ambang `>=250 MB` adalah PERIKSA dan `>=500 MB` adalah TINGGI. Ambang hanya membantu menentukan prioritas pemeriksaan; bukan bukti malware atau kerusakan.
+- Satu proses `svchost.exe` dapat menampung beberapa layanan Windows. Konsumsi RAM harus ditelusuri ke layanan dan aktivitas terkait, bukan dengan menghentikan proses host.
+- Pemeriksaan ini read-only dan tidak menghentikan proses, mengubah startup type, atau menonaktifkan layanan.
 
 ### Membaca laporan RAM dan hasil optimasi
 

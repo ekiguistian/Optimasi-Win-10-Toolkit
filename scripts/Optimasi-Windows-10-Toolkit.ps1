@@ -503,6 +503,137 @@ function Apply-SafeOptimizations {
     Write-Host "Sebagian pengaturan memerlukan sign out atau restart. Persentase sukses menghitung tindakan konfigurasi, bukan persentase peningkatan performa." -ForegroundColor Yellow
 }
 
+function Set-CustomPagefileOnC {
+    Write-Host ""
+    Write-Host "========== CUSTOM VIRTUAL MEMORY / PAGEFILE ==========" -ForegroundColor Cyan
+    Write-Host "Pagefile hanya akan dibuat pada C:\pagefile.sys dan hanya jika disk C terdeteksi sebagai SSD." -ForegroundColor Yellow
+    Write-Host "Pagefile bukan RAM fisik. Jika sering digunakan, performanya tetap jauh lebih lambat daripada RAM." -ForegroundColor Yellow
+    Write-Host "Jangan gunakan fitur ini pada HDD. Jika jenis disk tidak dapat dipastikan, proses akan dibatalkan." -ForegroundColor Yellow
+
+    $rawSize = Read-Host "Masukkan ukuran pagefile tetap dalam MB (1000-24000)"
+    $sizeMB = 0
+    if (-not [int]::TryParse($rawSize, [ref]$sizeMB) -or $sizeMB -lt 1000 -or $sizeMB -gt 24000) {
+        Write-Host "Ukuran tidak valid. Masukkan angka 1000 sampai 24000 MB." -ForegroundColor Red
+        return
+    }
+
+    try {
+        $partition = Get-Partition -DriveLetter C -ErrorAction Stop
+        $osDisk = Get-Disk -Number $partition.DiskNumber -ErrorAction Stop
+        $mediaType = [string]$osDisk.MediaType
+        if ($mediaType -ne "SSD") {
+            Write-Host "DITOLAK: disk C terdeteksi sebagai '$mediaType', bukan SSD yang terkonfirmasi." -ForegroundColor Red
+            Write-Host "Tidak ada perubahan dilakukan. Periksa jenis media secara manual jika disk menggunakan RAID/Storage Controller." -ForegroundColor Yellow
+            return
+        }
+
+        $volume = Get-Volume -DriveLetter C -ErrorAction Stop
+        $freeMB = [math]::Floor($volume.SizeRemaining / 1MB)
+        $requiredFreeMB = $sizeMB + 2048
+        if ($freeMB -lt $requiredFreeMB) {
+            Write-Host "DITOLAK: ruang kosong C hanya $freeMB MB. Dibutuhkan minimal $requiredFreeMB MB (pagefile $sizeMB MB + cadangan 2048 MB)." -ForegroundColor Red
+            return
+        }
+
+        $computer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+        $oldAutomatic = [bool]$computer.AutomaticManagedPagefile
+        $oldSettings = @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop | Select-Object Name, InitialSize, MaximumSize)
+
+        Write-Host "Ringkasan perubahan:" -ForegroundColor Cyan
+        [pscustomobject]@{
+            "Disk C" = $osDisk.FriendlyName
+            "Jenis media" = $mediaType
+            "Ruang kosong C" = "$freeMB MB"
+            "Ukuran pagefile baru" = "$sizeMB MB (Initial = Maximum)"
+            "Lokasi baru" = "C:\pagefile.sys"
+            "Pengelolaan otomatis sebelumnya" = $oldAutomatic
+            "Pagefile manual sebelumnya" = if ($oldSettings.Count -gt 0) { ($oldSettings | ForEach-Object { "$($_.Name): $($_.InitialSize)/$($_.MaximumSize) MB" }) -join "; " } else { "Tidak ada konfigurasi manual terdeteksi" }
+            "Pagefile partisi lain" = "Akan dihapus dari konfigurasi"
+        } | Format-List
+
+        Write-Host "PERINGATAN:" -ForegroundColor Yellow
+        Write-Host "- Pengaturan ini mengganti konfigurasi pagefile yang ada, termasuk pada partisi selain C."
+        Write-Host "- Restart Windows diperlukan agar konfigurasi baru aktif."
+        Write-Host "- Baseline toolkit akan dibuat/digunakan untuk membantu pemulihan konfigurasi sebelumnya."
+        Write-Host "- SSD dipilih karena akses acak lebih baik daripada HDD; pagefile yang sering aktif tetap dapat menambah aktivitas tulis SSD."
+        $confirm = Read-Host "Ketik SET PAGEFILE untuk menerapkan perubahan"
+        if ($confirm -cne "SET PAGEFILE") {
+            Write-Host "Dibatalkan. Tidak ada perubahan dilakukan."
+            return
+        }
+
+        Ensure-Baseline
+        $changed = $false
+        try {
+            $computer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+            Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$false } -ErrorAction Stop | Out-Null
+            $changed = $true
+
+            foreach ($setting in @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop)) {
+                $deleteResult = Invoke-CimMethod -InputObject $setting -MethodName Delete -ErrorAction Stop
+                if ($deleteResult.ReturnValue -ne 0) {
+                    throw "Gagal menghapus konfigurasi pagefile '$($setting.Name)'. ReturnValue=$($deleteResult.ReturnValue)"
+                }
+            }
+
+            $createResult = Invoke-CimMethod -ClassName Win32_PageFileSetting -MethodName Create -Arguments @{
+                Name="C:\pagefile.sys"
+                InitialSize=[uint32]$sizeMB
+                MaximumSize=[uint32]$sizeMB
+            } -ErrorAction Stop
+            if ($createResult.ReturnValue -ne 0) {
+                throw "Gagal membuat pagefile C:. ReturnValue=$($createResult.ReturnValue)"
+            }
+
+            $verifyComputer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+            $verifySettings = @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop)
+            $cSetting = @($verifySettings | Where-Object { $_.Name -ieq "C:\pagefile.sys" })
+            $otherSettings = @($verifySettings | Where-Object { $_.Name -ine "C:\pagefile.sys" })
+            if ($verifyComputer.AutomaticManagedPagefile -or $cSetting.Count -ne 1 -or $otherSettings.Count -gt 0 -or $cSetting[0].InitialSize -ne $sizeMB -or $cSetting[0].MaximumSize -ne $sizeMB) {
+                throw "Verifikasi konfigurasi pagefile tidak sesuai dengan target C:\pagefile.sys $sizeMB MB."
+            }
+
+            Write-Host "Konfigurasi pagefile berhasil disimpan." -ForegroundColor Green
+            Write-Host "Lokasi: C:\pagefile.sys"
+            Write-Host "Initial Size: $sizeMB MB"
+            Write-Host "Maximum Size: $sizeMB MB"
+            Write-Host "Restart Windows diperlukan sebelum perubahan aktif." -ForegroundColor Yellow
+            Write-Log "Custom pagefile configured on C: SSD only, fixed size $sizeMB MB. Restart required."
+        } catch {
+            Write-Host "Penerapan gagal: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Log "Custom pagefile failed: $($_.Exception.Message)"
+            if ($changed) {
+                try {
+                    $computer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+                    Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$false } -ErrorAction Stop | Out-Null
+                    foreach ($current in @(Get-CimInstance Win32_PageFileSetting -ErrorAction Stop)) {
+                        [void](Invoke-CimMethod -InputObject $current -MethodName Delete -ErrorAction Stop)
+                    }
+                    if ($oldAutomatic) {
+                        $computer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+                        Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$true } -ErrorAction Stop | Out-Null
+                    } else {
+                        foreach ($old in $oldSettings) {
+                            $restoreResult = Invoke-CimMethod -ClassName Win32_PageFileSetting -MethodName Create -Arguments @{
+                                Name=[string]$old.Name
+                                InitialSize=[uint32]$old.InitialSize
+                                MaximumSize=[uint32]$old.MaximumSize
+                            } -ErrorAction Stop
+                            if ($restoreResult.ReturnValue -ne 0) { throw "Restore pagefile '$($old.Name)' gagal." }
+                        }
+                    }
+                    Write-Host "Konfigurasi pagefile sebelumnya berhasil dipulihkan." -ForegroundColor Green
+                } catch {
+                    Write-Host "Pemulihan otomatis gagal: $($_.Exception.Message). Gunakan menu 12 Restore baseline." -ForegroundColor Red
+                }
+            }
+        }
+    } catch {
+        Write-Host "Pemeriksaan SSD/drive C gagal: $($_.Exception.Message). Tidak ada perubahan dilakukan." -ForegroundColor Red
+        Write-Log "Custom pagefile pre-check failed: $($_.Exception.Message)"
+    }
+}
+
 function Set-SystemManagedPagefile {
     Ensure-Baseline
     try {
@@ -872,6 +1003,7 @@ function Show-Menu {
     Write-Host "17. Audit Microsoft Edge dan WebView2 (read-only)"
     Write-Host "18. Laporan singkat kesehatan service dan konsumsi RAM"
     Write-Host "19. Uninstall Microsoft Edge (advanced / berisiko)"
+    Write-Host "20. Atur Virtual Memory custom (SSD C: only, 1000-24000 MB)"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"
 }
@@ -908,6 +1040,7 @@ do {
         "17" { Show-EdgeComponents; Pause-Menu }
         "18" { Show-SystemHealthReport; Pause-Menu }
         "19" { Uninstall-MicrosoftEdgeAdvanced; Pause-Menu }
+        "20" { Set-CustomPagefileOnC; Pause-Menu }
         "0"  { $exitRequested = $true }
         default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
     }

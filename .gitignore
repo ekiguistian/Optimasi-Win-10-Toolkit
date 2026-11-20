@@ -1,0 +1,17 @@
+# Windows
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# PowerShell logs / generated reports / backups
+*.log
+*.csv
+*.txt
+baseline.json
+system-report-*.txt
+app-audit-*.csv
+removed-apps-*.csv
+
+# Editor
+.vscode/
+.idea/

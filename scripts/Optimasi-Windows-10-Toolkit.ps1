@@ -800,8 +800,9 @@ function Uninstall-MicrosoftEdgeAdvanced {
     Write-Host "Tindakan ini menghapus browser Edge, bukan WebView2 Runtime. Aplikasi/fitur Windows tertentu dapat bergantung pada Edge." -ForegroundColor Yellow
     Write-Host "Operasi tidak dijamin didukung pada semua build/region Windows dan tidak dapat dipulihkan oleh baseline toolkit." -ForegroundColor Yellow
 
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
     $candidateRoots = @(
-        (Join-Path \${env:ProgramFiles(x86)} "Microsoft\Edge\Application"),
+        (Join-Path $programFilesX86 "Microsoft\Edge\Application"),
         (Join-Path $env:ProgramFiles "Microsoft\Edge\Application"),
         (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\Application")
     ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
@@ -809,71 +810,7 @@ function Uninstall-MicrosoftEdgeAdvanced {
     $setups = @()
     foreach ($root in $candidateRoots) {
         $versions = Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match '^\d+(\.\d+){2,3}
-    Clear-Host
-    Write-Host "====================================================" -ForegroundColor Cyan
-    Write-Host " WINDOWS 10 RAM & RESPONSIVENESS TOOLKIT" -ForegroundColor Cyan
-    Write-Host " Target: Windows 10 22H2 x64 | PowerShell 5.1"
-    Write-Host "====================================================" -ForegroundColor Cyan
-    Write-Host " 1. Ringkasan penggunaan RAM"
-    Write-Host " 2. List semua service yang sedang Running"
-    Write-Host " 3. List service opsional yang aman dievaluasi"
-    Write-Host " 4. Disable service opsional yang dipilih"
-    Write-Host " 5. Ubah service opsional terpilih ke Manual"
-    Write-Host " 6. List aplikasi UWP / status background"
-    Write-Host " 7. Batasi aplikasi background untuk akun ini"
-    Write-Host " 8. List aplikasi Startup"
-    Write-Host " 9. List 20 proses pemakai RAM terbesar"
-    Write-Host "10. Terapkan optimasi aman (background, Game DVR, visual, pagefile)"
-    Write-Host "11. Aktifkan System Managed Pagefile"
-    Write-Host "12. Restore baseline sebelum optimasi"
-    Write-Host "13. Export laporan sistem"
-    Write-Host "14. Buka folder backup dan log"
-    Write-Host "15. List aplikasi bawaan yang dapat dievaluasi untuk uninstall"
-    Write-Host "16. Uninstall aplikasi terpilih (UWP / Appx)"
-    Write-Host "17. Audit Microsoft Edge dan WebView2 (read-only)"
-    Write-Host "18. Laporan singkat kesehatan service dan konsumsi RAM"
-    Write-Host "19. Uninstall Microsoft Edge (advanced / berisiko)"
-    Write-Host " 0. Keluar"
-    Write-Host "----------------------------------------------------"
-}
-
-if (-not (Test-Administrator)) {
-    Write-Host "Jalankan Windows PowerShell dengan Run as administrator." -ForegroundColor Red
-    Read-Host "Tekan Enter untuk keluar"
-    exit 1
-}
-
-New-Item -Path $Root -ItemType Directory -Force | Out-Null
-
-$exitRequested = $false
-do {
-    Show-Menu
-    $choice = Read-Host "Pilih menu"
-    switch ($choice) {
-        "1"  { Get-RamReport; Pause-Menu }
-        "2"  { Show-RunningServices; Pause-Menu }
-        "3"  { Show-OptionalServices; Pause-Menu }
-        "4"  { Disable-SelectedServices; Pause-Menu }
-        "5"  { Set-SelectedServicesManual; Pause-Menu }
-        "6"  { Show-BackgroundApps; Pause-Menu }
-        "7"  { Disable-BackgroundApps; Pause-Menu }
-        "8"  { Show-StartupApps; Pause-Menu }
-        "9"  { Show-TopMemoryProcesses; Pause-Menu }
-        "10" { Apply-SafeOptimizations; Pause-Menu }
-        "11" { Set-SystemManagedPagefile; Pause-Menu }
-        "12" { Restore-Baseline; Pause-Menu }
-        "13" { Export-SystemReport; Pause-Menu }
-        "14" { Start-Process explorer.exe -ArgumentList $Root }
-        "15" { Show-RemovableApps; Pause-Menu }
-        "16" { Remove-SelectedApps; Pause-Menu }
-        "17" { Show-EdgeComponents; Pause-Menu }
-        "18" { Show-SystemHealthReport; Pause-Menu }
-        "19" { Uninstall-MicrosoftEdgeAdvanced; Pause-Menu }
-        "0"  { $exitRequested = $true }
-        default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
-    }
-} while (-not $exitRequested) } |
+            Where-Object { $_.Name -match '^[0-9]+([.][0-9]+){2,3}$' } |
             Sort-Object { [version]$_.Name } -Descending
         foreach ($versionDir in $versions) {
             $setup = Join-Path $versionDir.FullName "Installer\setup.exe"
@@ -894,8 +831,8 @@ do {
     if ($confirm -cne "UNINSTALL EDGE") { Write-Host "Dibatalkan."; return }
 
     try {
-        $arguments = @("--uninstall", "--verbose-logging", "--force-uninstall")
-        if ($selected.SystemLevel) { $arguments += "--system-level" }
+        $arguments = @('--uninstall', '--verbose-logging', '--force-uninstall')
+        if ($selected.SystemLevel) { $arguments += '--system-level' }
         $process = Start-Process -FilePath $selected.Setup -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
         Write-Log "Edge uninstall process exited with code $($process.ExitCode)."
         if ($process.ExitCode -eq 0) {
@@ -924,7 +861,7 @@ function Show-Menu {
     Write-Host " 6. List aplikasi UWP / status background"
     Write-Host " 7. Batasi aplikasi background untuk akun ini"
     Write-Host " 8. List aplikasi Startup"
-    Write-Host " 9. List 20 proses pemakai RAM terbesar"
+    Write-Host " 9. List 10 kelompok proses pemakai RAM terbesar"
     Write-Host "10. Terapkan optimasi aman (background, Game DVR, visual, pagefile)"
     Write-Host "11. Aktifkan System Managed Pagefile"
     Write-Host "12. Restore baseline sebelum optimasi"

@@ -1246,6 +1246,170 @@ function Show-AdditionalToolsMenu {
 }
 
 
+function Get-WindowsUpdateControlSnapshot {
+    $policyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
+    $serviceNames = @("wuauserv", "UsoSvc")
+    $services = @(
+        foreach ($name in $serviceNames) {
+            Get-ServiceSnapshot -Name $name
+        }
+    ) | Where-Object { $_ }
+
+    [pscustomobject]@{
+        Created = (Get-Date).ToString("o")
+        Registry = @(
+            Get-RegistrySnapshot -Path $policyPath -Name "NoAutoUpdate"
+            Get-RegistrySnapshot -Path $policyPath -Name "AUOptions"
+        )
+        Services = @($services)
+        Note = "Snapshot sebelum fitur Windows Update dijalankan. Jangan hapus file ini sebelum pemulihan."
+    }
+}
+
+function Set-WindowsUpdateServices {
+    param(
+        [ValidateSet("Disabled", "Restore")]
+        [string]$Mode,
+        [object[]]$Services
+    )
+
+    foreach ($saved in $Services) {
+        $service = Get-Service -Name $saved.Name -ErrorAction SilentlyContinue
+        if (-not $service) {
+            Write-Host "Layanan $($saved.Name) tidak ditemukan." -ForegroundColor Yellow
+            continue
+        }
+
+        try {
+            if ($Mode -eq "Disabled") {
+                if ($service.Status -eq "Running") {
+                    Stop-Service -Name $saved.Name -Force -ErrorAction Stop
+                }
+                Set-Service -Name $saved.Name -StartupType Disabled -ErrorAction Stop
+                Write-Host "Layanan $($saved.Name) dinonaktifkan." -ForegroundColor Green
+                Write-Log "Windows Update service disabled: $($saved.Name)"
+            } else {
+                $startupType = switch ([string]$saved.StartMode) {
+                    "Auto" { "Automatic" }
+                    "Automatic" { "Automatic" }
+                    "Manual" { "Manual" }
+                    "Disabled" { "Disabled" }
+                    default { $null }
+                }
+                if (-not $startupType) {
+                    Write-Host "Mode startup awal $($saved.StartMode) untuk $($saved.Name) tidak dikenali; layanan dilewati." -ForegroundColor Yellow
+                    continue
+                }
+
+                Set-Service -Name $saved.Name -StartupType $startupType -ErrorAction Stop
+                if ($saved.State -eq "Running" -and $startupType -ne "Disabled") {
+                    Start-Service -Name $saved.Name -ErrorAction Stop
+                }
+                Write-Host "Konfigurasi awal layanan $($saved.Name) dipulihkan." -ForegroundColor Green
+                Write-Log "Windows Update service restored: $($saved.Name) ($startupType)"
+            }
+        } catch {
+            Write-Host "Gagal mengubah layanan $($saved.Name): $($_.Exception.Message)" -ForegroundColor Red
+            Write-Log "Windows Update service operation failed: $($saved.Name) - $($_.Exception.Message)"
+        }
+    }
+}
+
+function Disable-WindowsUpdateAutomatic {
+    $backupPath = Join-Path $Root "windows-update-backup.json"
+    if (Test-Path -LiteralPath $backupPath) {
+        Write-Host "Backup konfigurasi awal sudah ada. Pulihkan konfigurasi sebelumnya sebelum menonaktifkan ulang." -ForegroundColor Yellow
+        Write-Host "Gunakan pilihan Pulihkan Windows Update agar backup awal tidak tertimpa."
+        return
+    }
+
+    $snapshot = Get-WindowsUpdateControlSnapshot
+    if ($snapshot.Services.Count -eq 0) {
+        Write-Host "Layanan Windows Update tidak ditemukan. Operasi dibatalkan." -ForegroundColor Red
+        return
+    }
+
+    Write-Host ""
+    Write-Host "PERINGATAN: Windows Update otomatis akan dinonaktifkan." -ForegroundColor Red
+    Write-Host "Windows tidak akan menerima pembaruan keamanan dan perbaikan otomatis selama fitur ini aktif." -ForegroundColor Yellow
+    Write-Host "Microsoft Store, Defender, dan komponen Windows lain dapat memiliki perilaku pembaruan yang berbeda."
+    Write-Host "Windows Update Medic atau servicing Windows dapat mengaktifkan kembali layanan pada kondisi tertentu."
+    Write-Host "Layanan Windows Update dan Update Orchestrator akan diatur Disabled; WaaSMedicSvc tidak diubah."
+    $confirmation = Read-Host "Ketik DISABLE WINDOWS UPDATE untuk melanjutkan"
+    if ($confirmation -cne "DISABLE WINDOWS UPDATE") {
+        Write-Host "Dibatalkan. Tidak ada perubahan dilakukan." -ForegroundColor Yellow
+        return
+    }
+
+    New-Item -Path $Root -ItemType Directory -Force | Out-Null
+    $snapshot | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $backupPath -Encoding UTF8
+
+    try {
+        $policyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU"
+        Set-RegistryValue -Path $policyPath -Name "NoAutoUpdate" -Value 1 -Kind "DWord"
+        Set-RegistryValue -Path $policyPath -Name "AUOptions" -Value 1 -Kind "DWord"
+        Write-Host "Kebijakan update otomatis dinonaktifkan." -ForegroundColor Green
+        Write-Log "Windows Update automatic update policy disabled."
+    } catch {
+        Write-Host "Gagal mengatur kebijakan Windows Update: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Log "Windows Update policy change failed: $($_.Exception.Message)"
+    }
+
+    Set-WindowsUpdateServices -Mode Disabled -Services $snapshot.Services
+    Write-Host ""
+    Write-Host "Verifikasi konfigurasi layanan:" -ForegroundColor Cyan
+    Get-CimInstance Win32_Service -Filter "Name='wuauserv' OR Name='UsoSvc'" -ErrorAction SilentlyContinue |
+        Select-Object Name, State, StartMode |
+        Format-Table -AutoSize
+    Write-Host "Backup konfigurasi awal: $backupPath" -ForegroundColor Yellow
+    Write-Host "Restart Windows dan periksa status kembali. Windows dapat mengubah konfigurasi layanan melalui servicing." -ForegroundColor Yellow
+}
+
+function Restore-WindowsUpdateAutomatic {
+    $backupPath = Join-Path $Root "windows-update-backup.json"
+    if (-not (Test-Path -LiteralPath $backupPath)) {
+        Write-Host "Backup konfigurasi awal tidak ditemukan. Pemulihan otomatis tidak dapat dilakukan." -ForegroundColor Yellow
+        return
+    }
+
+    $confirmation = Read-Host "Ketik RESTORE WINDOWS UPDATE untuk memulihkan konfigurasi awal"
+    if ($confirmation -cne "RESTORE WINDOWS UPDATE") {
+        Write-Host "Pemulihan dibatalkan." -ForegroundColor Yellow
+        return
+    }
+
+    try {
+        $snapshot = Get-Content -LiteralPath $backupPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        foreach ($item in $snapshot.Registry) {
+            Restore-RegistrySnapshot -Item $item
+        }
+        Write-Host "Kebijakan registry Windows Update dipulihkan." -ForegroundColor Green
+        Write-Log "Windows Update registry policy restored."
+    } catch {
+        Write-Host "Gagal memulihkan kebijakan registry: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Log "Windows Update registry restore failed: $($_.Exception.Message)"
+    }
+
+    Set-WindowsUpdateServices -Mode Restore -Services @($snapshot.Services)
+    Write-Host "Konfigurasi awal sudah dicoba untuk dipulihkan. Periksa status layanan dan jalankan Windows Update secara manual." -ForegroundColor Yellow
+    Write-Host "Backup dipertahankan: $backupPath"
+}
+
+function Show-WindowsUpdateMenu {
+    Clear-Host
+    Write-Host "========== PENGATURAN WINDOWS UPDATE ==========" -ForegroundColor Cyan
+    Write-Host "1. Nonaktifkan Windows Update otomatis"
+    Write-Host "2. Pulihkan pengaturan Windows Update"
+    Write-Host "0. Kembali"
+    $choice = Read-Host "Pilih menu"
+    switch ($choice) {
+        "1" { Disable-WindowsUpdateAutomatic; Pause-Menu }
+        "2" { Restore-WindowsUpdateAutomatic; Pause-Menu }
+        "0" { return }
+        default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Pause-Menu }
+    }
+}
+
 function Restart-WindowsForce {
     Write-Host ""
     Write-Host "PERINGATAN: Restart paksa akan menutup semua aplikasi tanpa menyimpan pekerjaan." -ForegroundColor Red
@@ -1298,6 +1462,7 @@ function Show-Menu {
     Write-Host "20. Atur Memori Virtual SSD - Atur ukuran pagefile di SSD"
     Write-Host "21. Alat Tambahan - Buka fitur diagnosis lainnya"
     Write-Host "22. Restart - Restart paksa komputer"
+    Write-Host "23. Windows Update - Nonaktifkan atau pulihkan update otomatis"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"
 }
@@ -1337,6 +1502,7 @@ do {
         "20" { Set-CustomPagefileOnC; Pause-Menu }
         "21" { Show-AdditionalToolsMenu }
         "22" { Restart-WindowsForce; Pause-Menu }
+        "23" { Show-WindowsUpdateMenu }
         "0"  { $exitRequested = $true }
         default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
     }

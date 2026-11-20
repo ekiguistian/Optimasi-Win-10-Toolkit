@@ -63,31 +63,33 @@ cd Optimasi-Win-10-Toolkit
 
 1. Buka halaman repository: <https://github.com/ekiguistian/Optimasi-Win-10-Toolkit>.
 2. Pilih **Code → Download ZIP**.
-3. Ekstrak ZIP ke folder yang mudah diakses, misalnya `C:\Tools\Optimasi-Win-10-Toolkit`.
+3. Ekstrak seluruh ZIP ke folder yang mudah diakses, misalnya `C:\Tools\Optimasi-Win-10-Toolkit`. Pertahankan struktur folder agar launcher dapat menemukan script PowerShell.
 
-### Jalankan toolkit
+### Jalankan toolkit (direkomendasikan)
 
-1. Buka **Windows PowerShell 5.1** dengan memilih **Run as administrator**.
-2. Masuk ke direktori hasil clone/ekstrak. Sesuaikan path jika lokasi berbeda:
+1. Pastikan folder repository sudah diekstrak secara utuh; jangan memindahkan file BAT terpisah dari folder `scripts`.
+2. Jalankan `Optimasi-Win-10-Toolkit.bat` dengan double-click. Launcher akan memeriksa hak Administrator dan meminta persetujuan UAC secara otomatis jika belum elevated.
+3. Alternatifnya, klik kanan file BAT lalu pilih **Run as administrator**.
+4. Setelah UAC disetujui, launcher membuka Windows PowerShell 5.1 dan menjalankan script utama.
+
+Launcher menggunakan `powershell.exe -ExecutionPolicy Bypass` hanya untuk proses toolkit. Kebijakan eksekusi sistem tidak diubah secara permanen. Jika permintaan UAC dibatalkan, toolkit tidak dijalankan.
+
+### Jalankan langsung melalui PowerShell (opsional)
+
+Buka **Windows PowerShell 5.1** sebagai Administrator, masuk ke direktori repository, lalu jalankan:
 
 ```powershell
-cd C:\Tools\Optimasi-Win-10-Toolkit
+Set-Location "C:\Tools\Optimasi-Win-10-Toolkit"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Optimasi-Windows-10-Toolkit.ps1"
 ```
 
-3. Jika file ditandai berasal dari internet dan kebijakan `RemoteSigned` memblokirnya, periksa dahulu sumber dan isi script. Setelah yakin file tepercaya, buka blokir file tersebut secara spesifik:
+Jika file diblokir oleh Windows, periksa sumber dan isi file terlebih dahulu. Setelah yakin file tepercaya, buka blokir file secara spesifik:
 
 ```powershell
 Unblock-File .\scripts\Optimasi-Windows-10-Toolkit.ps1
 ```
 
-4. Jalankan script. Jika kebijakan eksekusi lokal memblokirnya, gunakan bypass **hanya untuk sesi PowerShell yang sedang dibuka**:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-.\scripts\Optimasi-Windows-10-Toolkit.ps1
-```
-
-Pengaturan `Process` tidak mengubah kebijakan permanen untuk seluruh komputer. Jangan mengubah Execution Policy ke `Unrestricted` atau menonaktifkan kebijakan keamanan secara permanen hanya untuk menjalankan toolkit. Kebijakan Group Policy organisasi dapat tetap membatasi eksekusi script.
+Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan keamanan secara permanen hanya untuk menjalankan toolkit. Kebijakan Group Policy organisasi dapat tetap membatasi eksekusi script.
 
 ## Alur penggunaan yang disarankan
 

@@ -39,6 +39,7 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 17 | Audit Edge dan WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
 | 18 | Laporan kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
 | 19 | Uninstall Microsoft Edge (advanced) | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
+| 20 | Custom Virtual Memory (SSD C: only) | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
 | 0 | Keluar | Menutup toolkit. |
 
 ## Persyaratan
@@ -112,6 +113,18 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 - Perubahan RAM dihitung dari estimasi RAM terpakai tepat sebelum dan sesudah menu 10. Proses latar belakang, cache, dan aktivitas Windows dapat mengubah angka tersebut; hasil bukan bukti pasti RAM telah dibebaskan oleh toolkit.
 - Menu 18 memeriksa service inti yang dipilih. Status **OK** hanya berarti service yang diperiksa memenuhi pemeriksaan sederhana, bukan sertifikasi keamanan seluruh Windows.
 - Daftar RAM dikelompokkan berdasarkan nama proses agar beberapa instance browser/aplikasi tidak tersebar menjadi banyak baris. Working Set dapat menghitung shared memory lebih dari sekali.
+
+
+### Custom Virtual Memory / Pagefile (menu 20)
+
+- Masukkan ukuran dalam MB, misalnya `4000` untuk pagefile tetap 4.000 MB. Initial Size dan Maximum Size dibuat sama.
+- Batas input adalah 1.000-24.000 MB. Fitur hanya berjalan jika Windows melaporkan disk fisik di belakang drive C sebagai `SSD`. Jika `HDD` atau `Unspecified`, proses dibatalkan; perangkat RAID/Storage Controller yang tidak melaporkan jenis media secara jelas harus diverifikasi manual.
+- Lokasi yang dibuat adalah `C:\\pagefile.sys`. Semua konfigurasi pagefile manual yang ada pada partisi lain akan dihapus agar hanya C: yang dikonfigurasi.
+- Fitur memerlukan ruang kosong C: minimal sebesar ukuran pagefile ditambah cadangan 2.048 MB.
+- Sebelum perubahan, toolkit menampilkan disk, tipe media, ruang kosong, dan konfigurasi pagefile saat ini. Pengguna harus mengetik `SET PAGEFILE` untuk melanjutkan.
+- Baseline yang ada digunakan untuk pemulihan; jika belum ada, baseline dibuat sebelum perubahan. Jika proses gagal di tengah jalan, toolkit mencoba memulihkan konfigurasi sebelumnya secara otomatis. Menu 12 tetap menjadi jalur pemulihan baseline.
+- Restart diperlukan agar konfigurasi aktif. Pagefile memperbesar commit limit, bukan kapasitas RAM fisik atau kecepatan RAM. Jangan menetapkan ukuran besar tanpa kebutuhan dan ruang disk yang cukup.
+- Ukuran pagefile ideal tidak universal; pertimbangkan peak commit, crash dump, beban aplikasi, dan ruang disk. System Managed (menu 11) tetap pilihan default yang lebih aman untuk kebanyakan pengguna.
 
 ## Penyimpanan backup dan log
 

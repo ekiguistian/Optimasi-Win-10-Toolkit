@@ -870,6 +870,8 @@ function Show-Menu {
     Write-Host "15. List aplikasi bawaan yang dapat dievaluasi untuk uninstall"
     Write-Host "16. Uninstall aplikasi terpilih (UWP / Appx)"
     Write-Host "17. Audit Microsoft Edge dan WebView2 (read-only)"
+    Write-Host "18. Laporan singkat kesehatan service dan konsumsi RAM"
+    Write-Host "19. Uninstall Microsoft Edge (advanced / berisiko)"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"
 }
@@ -904,6 +906,8 @@ do {
         "15" { Show-RemovableApps; Pause-Menu }
         "16" { Remove-SelectedApps; Pause-Menu }
         "17" { Show-EdgeComponents; Pause-Menu }
+        "18" { Show-SystemHealthReport; Pause-Menu }
+        "19" { Uninstall-MicrosoftEdgeAdvanced; Pause-Menu }
         "0"  { $exitRequested = $true }
         default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
     }

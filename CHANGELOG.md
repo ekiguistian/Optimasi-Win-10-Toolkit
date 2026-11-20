@@ -10,7 +10,7 @@
 - Added a system health report for selected core services, Defender status when available, and top RAM-consuming process groups.
 - Added optimization action success percentage and immediate before/after RAM usage estimate.
 - Excluded protected/non-removable Appx packages such as XboxGameCallableUI from the uninstall catalog.
-- Added an explicit-confirmation advanced Edge uninstaller that preserves WebView2 and documents restore limitations.
+- Improved menu 19 Edge cleanup: inspect Edge Update services and scheduled tasks, stop/disable updater services, disable Edge Update tasks, run the Edge uninstaller, and verify remaining browser/updater components. WebView2 and shared updater files are preserved; WebView2 update impact is documented.
 - Added custom fixed-size pagefile configuration restricted to a confirmed SSD-backed C: drive, with 1,000-24,000 MB validation, free-space check, baseline capture, confirmation, and rollback attempt.
 - Added a read-only svchost.exe RAM diagnostic under Tools Tambahan, including per-PID Working Set, mapped Windows services, executable path, and command line.
 - Shortened the main menu labels and added a force-restart option with an explicit confirmation and unsaved-data warning.

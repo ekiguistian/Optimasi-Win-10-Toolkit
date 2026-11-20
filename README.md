@@ -17,32 +17,31 @@ Toolkit ini **tidak dapat menambah kapasitas RAM fisik** dan tidak menjamin angk
 
 Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 
-| Menu | Fitur | Fungsi |
+| Nomor | Tampilan menu | Keterangan |
 |---:|---|---|
-| 1 | Ringkasan RAM | Menampilkan informasi memori fisik dan penggunaan RAM saat ini. |
-| 2 | Layanan aktif | Menampilkan daftar service Windows yang sedang berjalan untuk audit. |
-| 3 | Layanan opsional | Menampilkan kandidat service yang dapat dievaluasi berdasarkan kebutuhan perangkat. |
-| 4 | Matikan layanan | Menonaktifkan service opsional yang dipilih secara manual. Gunakan hanya jika memahami dampaknya. |
-| 5 | Atur layanan Manual | Mengubah startup type service terpilih menjadi Manual, sebagai alternatif yang lebih konservatif daripada Disabled. |
-| 6 | Aplikasi UWP | Menampilkan aplikasi UWP dan informasi pengaturan aktivitas background yang dapat dibaca. |
-| 7 | Aplikasi latar | Mengubah izin background untuk aplikasi yang didukung pada akun pengguna saat ini. Tidak mengendalikan semua aplikasi desktop. |
-| 8 | Aplikasi startup | Menampilkan program startup yang terdeteksi melalui WMI/CIM. |
-| 9 | Proses boros RAM | Mengelompokkan proses berdasarkan nama dan menjumlahkan Working Set; menandai kelompok di atas 250 MB untuk diperiksa dan 500 MB sebagai tinggi. Ambang ini indikatif, bukan diagnosis malware. |
-| 10 | Optimasi aman | Menerapkan pengaturan terbatas terkait aplikasi background, Game DVR, visual effects, dan pagefile. Menampilkan jumlah tindakan berhasil, persentase tindakan sukses, serta perubahan estimasi RAM terpakai sebelum/sesudah. |
-
-| 11 | Memori virtual otomatis | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. Disarankan untuk perangkat dengan RAM terbatas; jangan menonaktifkan pagefile. |
-| 12 | Pulihkan pengaturan | Memulihkan pengaturan registry, service yang dicatat, dan konfigurasi pagefile dari baseline yang dibuat toolkit. Bukan full system restore. |
-| 13 | Laporan sistem | Mengekspor ringkasan informasi sistem untuk kebutuhan troubleshooting. |
-| 14 | Folder backup / log | Membuka direktori penyimpanan baseline dan log toolkit. |
-| 15 | Aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
-| 16 | Hapus aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
-| 17 | Cek Edge / WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
-| 18 | Kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
-| 19 | Hapus Edge | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
-| 20 | Atur memori virtual SSD | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
-| 21 | Tools tambahan | Membuka submenu diagnostik, termasuk pemeriksaan RAM `svchost.exe`, PID, layanan, dan lokasi executable. Pemeriksaan bersifat read-only. |
-| 22 | Restart paksa | Memulai ulang Windows dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Aplikasi yang belum menyimpan data akan kehilangan perubahan. |
-| 0 | Keluar | Menutup toolkit. |
+| 1 | RAM - Lihat penggunaan memori komputer | Menampilkan kapasitas RAM, RAM terpakai, dan RAM tersedia. |
+| 2 | Layanan Aktif - Lihat layanan Windows yang berjalan | Menampilkan daftar layanan Windows yang sedang berjalan. |
+| 3 | Layanan Opsional - Lihat layanan yang bisa diatur | Menampilkan layanan opsional beserta status dan keterangannya. |
+| 4 | Nonaktifkan Layanan - Matikan layanan yang tidak dipakai | Menonaktifkan layanan opsional yang dipilih. Pastikan fiturnya memang tidak digunakan. |
+| 5 | Mode Manual - Atur layanan agar berjalan saat dibutuhkan | Mengubah jenis startup layanan terpilih menjadi Manual. |
+| 6 | Aplikasi UWP - Lihat aplikasi bawaan Windows | Menampilkan aplikasi UWP dan pengaturan aktivitas latar belakangnya. |
+| 7 | Aplikasi Latar - Atur aplikasi yang berjalan di latar belakang | Mengubah izin aplikasi latar yang didukung untuk akun saat ini. |
+| 8 | Aplikasi Startup - Lihat aplikasi saat komputer dinyalakan | Menampilkan program startup yang terdeteksi. |
+| 9 | Pemakai RAM - Cari proses yang menggunakan banyak memori | Mengurutkan kelompok proses berdasarkan penggunaan RAM. |
+| 10 | Optimasi - Terapkan pengaturan Windows yang lebih ringan | Menerapkan pengaturan terbatas untuk aplikasi latar, Game DVR, visual effects, dan pagefile. |
+| 11 | Memori Virtual Otomatis - Gunakan pengaturan otomatis Windows | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. |
+| 12 | Pulihkan Pengaturan - Kembalikan pengaturan dari backup | Memulihkan pengaturan yang tercatat di baseline toolkit. |
+| 13 | Laporan Sistem - Simpan informasi kondisi komputer | Mengekspor ringkasan informasi sistem untuk troubleshooting. |
+| 14 | Backup dan Log - Buka folder cadangan dan catatan | Membuka folder penyimpanan baseline dan log toolkit. |
+| 15 | Daftar Aplikasi - Lihat aplikasi bawaan yang bisa dihapus | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi. |
+| 16 | Hapus Aplikasi - Hapus aplikasi UWP yang dipilih | Menghapus aplikasi terpilih untuk akun pengguna saat ini. |
+| 17 | Cek Edge dan WebView2 - Periksa komponen browser Microsoft | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
+| 18 | Kesehatan Windows - Periksa RAM dan layanan penting | Menampilkan RAM, layanan inti, status Defender jika tersedia, dan proses pemakai RAM tertinggi. |
+| 19 | Hapus Edge - Hapus browser dan nonaktifkan update Edge | Menjalankan uninstaller Edge, menghentikan/menonaktifkan layanan Edge Update, dan menonaktifkan Scheduled Tasks Edge Update setelah konfirmasi. WebView2 dan file updater bersama dipertahankan. |
+| 20 | Atur Memori Virtual SSD - Atur ukuran pagefile di SSD | Mengatur pagefile tetap pada C: setelah pemeriksaan SSD, ruang kosong, dan konfirmasi. Restart diperlukan. |
+| 21 | Alat Tambahan - Buka fitur diagnosis lainnya | Membuka submenu diagnosis, termasuk pemeriksaan `svchost.exe` dan layanan terkait. |
+| 22 | Restart - Restart paksa komputer | Memulai ulang komputer dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Data yang belum disimpan dapat hilang. |
+| 0 | Keluar - Tutup program | Menutup toolkit. |
 
 ## Persyaratan
 
@@ -169,7 +168,10 @@ Toolkit tidak dimaksudkan untuk menonaktifkan komponen inti Windows. Jangan meno
 - Jangan menonaktifkan service hanya berdasarkan nama atau asumsi bahwa service tersebut tidak diperlukan.
 - Jangan menggunakan RAM cleaner atau registry cleaner sebagai pengganti diagnosis.
 - Uninstall UWP berlaku untuk akun saat ini; kemampuan reinstall bergantung pada ketersediaan paket dan sumber instalasi.
-- Menu 19 menyediakan uninstall Edge tingkat lanjut melalui `setup.exe` bawaan Edge dengan konfirmasi `UNINSTALL EDGE`. Fitur ini berisiko, tidak dijamin pada semua build/region, dan tidak menghapus WebView2. Baseline toolkit tidak dapat memulihkan Edge; siapkan installer resmi untuk memasangnya kembali jika diperlukan.
+- Menu 19 menjalankan uninstaller `setup.exe` Edge, menghentikan dan menonaktifkan layanan `edgeupdate`, `edgeupdatem`, serta `MicrosoftEdgeElevationService` bila tersedia, lalu menonaktifkan Scheduled Tasks pada folder `\Microsoft\EdgeUpdate\`. Konfirmasi wajib: `REMOVE EDGE AND UPDATE`.
+- Menu 19 tidak menghapus service secara permanen, file updater bersama, registry updater, atau WebView2 Runtime. Service dan task dinonaktifkan agar updater tidak berjalan otomatis; snapshot kondisi awal disimpan di `C:\ProgramData\Optimasi-Windows-10-Toolkit\edge-update-backup.json`.
+- Jika WebView2 terpasang, menonaktifkan Edge Update juga menghentikan pembaruan keamanan otomatis WebView2. Aplikasi lain dapat bergantung pada WebView2; pertahankan runtime tersebut dan pahami konsekuensi update sebelum melanjutkan.
+- Uninstall Edge tidak didukung pada semua build/region/kebijakan Windows. Jika Edge tetap terdeteksi setelah proses, periksa hasil menu 17, log toolkit, dan kebijakan perangkat. Baseline tidak dapat memulihkan Edge atau status Edge Update; siapkan installer resmi dan catat status awal sebelum menjalankan fitur.
 - Pengaturan background UWP tidak menghentikan semua aplikasi desktop atau service pihak ketiga.
 
 Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).

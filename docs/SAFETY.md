@@ -10,7 +10,9 @@
 - A pagefile extends the commit limit; it does not add physical RAM or match RAM performance. Pagefile sizing depends on peak commit and crash dump requirements; System Managed remains the default recommendation.
 - Do not use RAM cleaner utilities or registry cleaners.
 - UWP background permission controls do not stop all desktop applications.
-- Microsoft Edge removal is an advanced, optional operation. It is not a recommended RAM optimization, is not supported on every Windows build/configuration, and is not covered by toolkit restore. Keep Edge WebView2 installed.
+- Microsoft Edge removal is an advanced, optional operation and is not supported on every Windows build/configuration. Menu 19 runs the bundled Edge uninstaller, stops/disables the `edgeupdate`, `edgeupdatem`, and `MicrosoftEdgeElevationService` services when present, and disables Scheduled Tasks under `\Microsoft\EdgeUpdate\`.
+- Menu 19 requires the exact confirmation `REMOVE EDGE AND UPDATE`. It does not permanently delete service registrations, updater binaries, updater registry data, or WebView2 Runtime. Initial service/task states are saved to `C:\ProgramData\Optimasi-Windows-10-Toolkit\edge-update-backup.json`.
+- If WebView2 is installed, disabling Edge Update also stops its automatic security updates. Keep WebView2 installed because other applications may depend on it; understand the update risk before proceeding. Toolkit restore does not restore Edge or Edge Update settings.
 - Do not force-remove protected Windows Appx packages. Packages marked `NonRemovable=True`, such as `Microsoft.XboxGameCallableUI` on systems where it is marked protected, are intentionally excluded from the removal catalog.
 - The system health report checks a limited list of critical services; an OK result is not a full security audit.
 - Force restart (menu 22) runs `shutdown.exe /r /f /t 0` only after the exact confirmation `RESTART FORCE`. The `/f` flag closes applications without prompting to save; unsaved work can be lost. Save all files before using it.

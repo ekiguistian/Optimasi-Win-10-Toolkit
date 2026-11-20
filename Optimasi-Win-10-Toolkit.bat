@@ -17,7 +17,7 @@ if not exist "%PS_SCRIPT%" (
 fltmc >nul 2>&1
 if errorlevel 1 (
     echo Meminta hak Administrator melalui UAC...
-    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath '%~f0' -Verb RunAs -ErrorAction Stop; exit 0 } catch { exit 1 }"
     if errorlevel 1 (
         echo [ERROR] Permintaan UAC gagal atau dibatalkan.
         pause

@@ -27,15 +27,18 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 6 | Aplikasi UWP / background | Menampilkan aplikasi UWP dan informasi pengaturan aktivitas background yang dapat dibaca. |
 | 7 | Batasi background UWP | Mengubah izin background untuk aplikasi yang didukung pada akun pengguna saat ini. Tidak mengendalikan semua aplikasi desktop. |
 | 8 | Aplikasi Startup | Menampilkan program startup yang terdeteksi melalui WMI/CIM. |
-| 9 | 20 proses pemakai RAM terbesar | Mengurutkan proses berdasarkan Working Set untuk membantu menemukan aplikasi yang boros memori. |
-| 10 | Optimasi aman | Menerapkan sejumlah pengaturan terbatas terkait aplikasi background, Game DVR, visual effects, dan pagefile. Tinjau perubahan sebelum dan sesudah menjalankan menu ini. |
+| 9 | Proses pemakai RAM terbesar | Mengelompokkan proses berdasarkan nama dan menjumlahkan Working Set; menandai kelompok di atas 250 MB untuk diperiksa dan 500 MB sebagai tinggi. Ambang ini indikatif, bukan diagnosis malware. |
+| 10 | Optimasi aman + perbandingan | Menerapkan pengaturan terbatas terkait aplikasi background, Game DVR, visual effects, dan pagefile. Menampilkan jumlah tindakan berhasil, persentase tindakan sukses, serta perubahan estimasi RAM terpakai sebelum/sesudah. |
+
 | 11 | System Managed Pagefile | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. Disarankan untuk perangkat dengan RAM terbatas; jangan menonaktifkan pagefile. |
 | 12 | Restore baseline | Memulihkan pengaturan registry, service yang dicatat, dan konfigurasi pagefile dari baseline yang dibuat toolkit. Bukan full system restore. |
 | 13 | Export laporan sistem | Mengekspor ringkasan informasi sistem untuk kebutuhan troubleshooting. |
 | 14 | Folder backup dan log | Membuka direktori penyimpanan baseline dan log toolkit. |
 | 15 | Katalog aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
 | 16 | Uninstall aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
-| 17 | Audit Edge dan WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime tanpa mengubah atau menghapus komponennya. |
+| 17 | Audit Edge dan WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
+| 18 | Laporan kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
+| 19 | Uninstall Microsoft Edge (advanced) | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
 | 0 | Keluar | Menutup toolkit. |
 
 ## Persyaratan
@@ -102,6 +105,14 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 8. Bandingkan kembali Available Memory, proses pemakai RAM, CPU, aktivitas disk, dan responsivitas. Jangan menilai hasil hanya dari angka Used RAM.
 9. Jika terjadi masalah, gunakan menu **12** untuk memulihkan bagian konfigurasi yang tercakup dalam baseline. Jika Windows mengalami masalah serius, gunakan System Restore atau backup sistem.
 
+
+### Membaca laporan RAM dan hasil optimasi
+
+- Persentase sukses adalah jumlah tindakan konfigurasi yang berhasil dibagi jumlah tindakan yang dicoba. Ini **bukan** persentase peningkatan performa.
+- Perubahan RAM dihitung dari estimasi RAM terpakai tepat sebelum dan sesudah menu 10. Proses latar belakang, cache, dan aktivitas Windows dapat mengubah angka tersebut; hasil bukan bukti pasti RAM telah dibebaskan oleh toolkit.
+- Menu 18 memeriksa service inti yang dipilih. Status **OK** hanya berarti service yang diperiksa memenuhi pemeriksaan sederhana, bukan sertifikasi keamanan seluruh Windows.
+- Daftar RAM dikelompokkan berdasarkan nama proses agar beberapa instance browser/aplikasi tidak tersebar menjadi banyak baris. Working Set dapat menghitung shared memory lebih dari sekali.
+
 ## Penyimpanan backup dan log
 
 Direktori default:
@@ -124,10 +135,11 @@ Toolkit tidak dimaksudkan untuk menonaktifkan komponen inti Windows. Jangan meno
 
 - Jangan menonaktifkan pagefile, khususnya pada perangkat RAM 4 GB.
 - Jangan menghapus Microsoft Store, framework/runtime, atau Microsoft Edge WebView2.
+- Paket Appx dengan `NonRemovable=True`, termasuk `Microsoft.XboxGameCallableUI` bila ditandai demikian pada sistem, tidak dimasukkan ke katalog uninstall. Itu adalah komponen sistem; jangan memaksa penghapusannya.
 - Jangan menonaktifkan service hanya berdasarkan nama atau asumsi bahwa service tersebut tidak diperlukan.
 - Jangan menggunakan RAM cleaner atau registry cleaner sebagai pengganti diagnosis.
 - Uninstall UWP berlaku untuk akun saat ini; kemampuan reinstall bergantung pada ketersediaan paket dan sumber instalasi.
-- Toolkit tidak menyediakan fitur uninstall Edge. Menu 17 hanya melakukan audit read-only untuk Edge dan WebView2 karena keduanya dapat menjadi dependensi Windows dan aplikasi lain.
+- Menu 19 menyediakan uninstall Edge tingkat lanjut melalui `setup.exe` bawaan Edge dengan konfirmasi `UNINSTALL EDGE`. Fitur ini berisiko, tidak dijamin pada semua build/region, dan tidak menghapus WebView2. Baseline toolkit tidak dapat memulihkan Edge; siapkan installer resmi untuk memasangnya kembali jika diperlukan.
 - Pengaturan background UWP tidak menghentikan semua aplikasi desktop atau service pihak ketiga.
 
 Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).

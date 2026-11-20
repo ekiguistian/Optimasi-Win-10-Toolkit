@@ -73,6 +73,7 @@ function Get-RegistrySnapshot {
 }
 
 function Set-RegistryValue {
+    [CmdletBinding()]
     param([string]$Path, [string]$Name, $Value, [string]$Kind)
     if (-not (Test-Path -LiteralPath $Path)) {
         New-Item -Path $Path -Force | Out-Null
@@ -190,6 +191,116 @@ function Get-RamReport {
     } catch {
         Write-Host "Memory Compression: status tidak dapat dibaca pada sistem ini."
     }
+}
+
+
+function Get-RamSnapshot {
+    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $totalMB = [math]::Round($os.TotalVisibleMemorySize / 1024, 1)
+    $freeMB = [math]::Round($os.FreePhysicalMemory / 1024, 1)
+    $usedMB = [math]::Max(0, [math]::Round($totalMB - $freeMB, 1))
+    [pscustomobject]@{
+        TotalMB=$totalMB
+        AvailableMB=$freeMB
+        UsedMB=$usedMB
+        LoadPercent=$(if ($totalMB -gt 0) { [math]::Round(($usedMB / $totalMB) * 100, 1) } else { 0 })
+        CapturedAt=(Get-Date).ToString("o")
+    }
+}
+
+function Get-TopMemoryUsage {
+    $groups = Get-Process -ErrorAction SilentlyContinue |
+        Group-Object ProcessName |
+        ForEach-Object {
+            $totalBytes = ($_.Group | Measure-Object -Property WorkingSet64 -Sum).Sum
+            [pscustomobject]@{ Process=$_.Name; Instances=$_.Count; RAM_MB=[math]::Round($totalBytes / 1MB, 1) }
+        } |
+        Sort-Object RAM_MB -Descending |
+        Select-Object -First 10
+
+    foreach ($item in $groups) {
+        $level = if ($item.RAM_MB -ge 500) { "TINGGI" } elseif ($item.RAM_MB -ge 250) { "PERIKSA" } else { "Normal" }
+        [pscustomobject]@{ Process=$item.Process; Instances=$item.Instances; RAM_MB=$item.RAM_MB; Assessment=$level }
+    }
+}
+
+function Get-CoreServiceHealth {
+    $critical = @(
+        @{ Name="RpcSs"; Label="Remote Procedure Call" },
+        @{ Name="DcomLaunch"; Label="DCOM Server Process Launcher" },
+        @{ Name="PlugPlay"; Label="Plug and Play" },
+        @{ Name="EventLog"; Label="Windows Event Log" },
+        @{ Name="Winmgmt"; Label="Windows Management Instrumentation" },
+        @{ Name="Schedule"; Label="Task Scheduler" },
+        @{ Name="BFE"; Label="Base Filtering Engine" },
+        @{ Name="MpsSvc"; Label="Windows Defender Firewall" },
+        @{ Name="CryptSvc"; Label="Cryptographic Services" }
+    )
+    foreach ($item in $critical) {
+        $svc = Get-CimInstance Win32_Service -Filter "Name='$($item.Name)'" -ErrorAction SilentlyContinue
+        if (-not $svc) {
+            [pscustomobject]@{ Name=$item.Name; Service=$item.Label; State="Not found"; Startup="Unknown"; Assessment="PERIKSA" }
+        } elseif ($svc.StartMode -eq "Disabled") {
+            [pscustomobject]@{ Name=$item.Name; Service=$item.Label; State=$svc.State; Startup=$svc.StartMode; Assessment="RISIKO" }
+        } elseif ($svc.State -ne "Running") {
+            [pscustomobject]@{ Name=$item.Name; Service=$item.Label; State=$svc.State; Startup=$svc.StartMode; Assessment="PERIKSA" }
+        } else {
+            [pscustomobject]@{ Name=$item.Name; Service=$item.Label; State=$svc.State; Startup=$svc.StartMode; Assessment="OK" }
+        }
+    }
+}
+
+function Show-SystemHealthReport {
+    $ram = Get-RamSnapshot
+    $services = @(Get-CoreServiceHealth)
+    $problems = @($services | Where-Object { $_.Assessment -ne "OK" })
+    $overall = if ($problems.Count -eq 0) { "OK - service inti yang diperiksa berjalan" } elseif (@($problems | Where-Object { $_.Assessment -eq "RISIKO" }).Count -gt 0) { "RISIKO - ada service inti Disabled" } else { "PERLU PERHATIAN - ada service inti tidak berjalan / tidak terdeteksi" }
+
+    Write-Host "========== RINGKASAN STATUS SISTEM ==========" -ForegroundColor Cyan
+    [pscustomobject]@{
+        "RAM terpakai (perkiraan)" = "$($ram.UsedMB) MB / $($ram.TotalMB) MB"
+        "RAM tersedia" = "$($ram.AvailableMB) MB"
+        "Beban RAM" = "$($ram.LoadPercent)%"
+        "Status service inti" = $overall
+    } | Format-List
+    Write-Host "Pemeriksaan service inti:" -ForegroundColor Cyan
+    $services | Format-Table Name, State, Startup, Assessment -AutoSize
+    Write-Host "10 kelompok proses dengan konsumsi RAM tertinggi:" -ForegroundColor Cyan
+    @(Get-TopMemoryUsage) | Format-Table Process, Instances, RAM_MB, Assessment -AutoSize
+    Write-Host "Ambang indikatif: >=250 MB PERIKSA; >=500 MB TINGGI. Ini bukan bukti malware atau kerusakan; browser, game, IDE, dan aplikasi kerja dapat wajar memakai RAM besar." -ForegroundColor DarkYellow
+    try {
+        $mp = Get-MpComputerStatus -ErrorAction Stop
+        Write-Host ("Microsoft Defender: AntivirusEnabled={0}; RealTimeProtectionEnabled={1}" -f $mp.AntivirusEnabled, $mp.RealTimeProtectionEnabled)
+    } catch {
+        Write-Host "Status Microsoft Defender tidak dapat dibaca. Periksa Windows Security / antivirus pihak ketiga secara manual." -ForegroundColor Yellow
+    }
+}
+
+function Show-OptimizationComparison {
+    param($Before, [int]$Attempted, [int]$Succeeded)
+    $after = Get-RamSnapshot
+    $delta = [math]::Round($Before.UsedMB - $after.UsedMB, 1)
+    $rate = if ($Attempted -gt 0) { [math]::Round(($Succeeded / $Attempted) * 100, 1) } else { 0 }
+    $ramResult = if ($delta -gt 0) { "Turun sekitar $delta MB" } elseif ($delta -lt 0) { "Naik sekitar $([math]::Abs($delta)) MB" } else { "Tidak berubah secara terukur" }
+    Write-Host "========== HASIL OPTIMASI ==========" -ForegroundColor Cyan
+    [pscustomobject]@{
+        "Tindakan berhasil" = "$Succeeded / $Attempted"
+        "Persentase tindakan sukses" = "$rate%"
+        "RAM terpakai sebelum" = "$($Before.UsedMB) MB"
+        "RAM terpakai sesudah" = "$($after.UsedMB) MB"
+        "Perubahan RAM terukur" = $ramResult
+        "Beban RAM sebelum" = "$($Before.LoadPercent)%"
+        "Beban RAM sesudah" = "$($after.LoadPercent)%"
+    } | Format-List
+    $record = [pscustomobject]@{
+        Timestamp=(Get-Date).ToString("o"); Attempted=$Attempted; Succeeded=$Succeeded
+        SuccessPercent=$rate; Before=$Before; After=$after
+        EstimatedUsedRamChangeMB=$delta
+        Note="Pengukuran langsung dapat dipengaruhi proses latar belakang; bukan pengukuran RAM yang pasti dibebaskan oleh optimasi."
+    }
+    $record | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $Root "latest-optimization-report.json") -Encoding UTF8
+    Write-Host "Catatan: perubahan RAM adalah estimasi sesaat. Untuk hasil lebih adil, restart, tunggu 3-5 menit, lalu jalankan laporan status lagi." -ForegroundColor Yellow
+    Write-Log "Optimization result: $Succeeded/$Attempted actions; estimated used RAM delta $delta MB."
 }
 
 function Show-RunningServices {
@@ -345,41 +456,51 @@ function Show-StartupApps {
 }
 
 function Show-TopMemoryProcesses {
-    Write-Host "`n========== 20 PROSES DENGAN WORKING SET TERBESAR ==========" -ForegroundColor Cyan
-    Get-Process -ErrorAction SilentlyContinue |
-        Sort-Object WorkingSet64 -Descending |
-        Select-Object -First 20 ProcessName, Id,
-            @{N="RAM_MB";E={[math]::Round($_.WorkingSet64 / 1MB, 1)}} |
-        Format-Table -AutoSize
-    Write-Host "Working Set per proses tidak bisa dijumlahkan begitu saja karena shared memory dapat dihitung berulang."
+    Write-Host "10 KELOMPOK PROSES PEMAKAI RAM TERBESAR" -ForegroundColor Cyan
+    Get-TopMemoryUsage | Format-Table Process, Instances, RAM_MB, Assessment -AutoSize
+    Write-Host "Ambang indikatif: >=250 MB PERIKSA; >=500 MB TINGGI. Working Set adalah estimasi dan shared memory dapat dihitung berulang." -ForegroundColor Yellow
 }
 
 function Apply-SafeOptimizations {
     Ensure-Baseline
+    $before = Get-RamSnapshot
+    $attempted = 0
+    $succeeded = 0
 
     foreach ($entry in $ManagedRegistryValues) {
+        $attempted++
         try {
-            Set-RegistryValue -Path $entry.Path -Name $entry.Name -Value $entry.Value -Kind $entry.Kind
+            Set-RegistryValue -Path $entry.Path -Name $entry.Name -Value $entry.Value -Kind $entry.Kind -ErrorAction Stop
+            $succeeded++
             Write-Host "Applied: $($entry.Label)" -ForegroundColor Green
             Write-Log "Registry changed: $($entry.Path)\$($entry.Name)"
         } catch {
             Write-Host "Gagal: $($entry.Label) - $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Log "Registry change failed: $($entry.Path)\$($entry.Name) - $($_.Exception.Message)"
         }
     }
 
-    # Keep Windows pagefile system-managed.
+    $attempted++
     try {
-        $computer = Get-CimInstance Win32_ComputerSystem
+        $computer = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
         if (-not $computer.AutomaticManagedPagefile) {
-            Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$true } | Out-Null
+            Set-CimInstance -InputObject $computer -Property @{ AutomaticManagedPagefile=$true } -ErrorAction Stop | Out-Null
         }
-        Write-Host "Pagefile: System managed" -ForegroundColor Green
-        Write-Log "Pagefile set to system managed."
+        $verify = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+        if ($verify.AutomaticManagedPagefile) {
+            $succeeded++
+            Write-Host "Pagefile: System managed" -ForegroundColor Green
+            Write-Log "Pagefile system-managed verified."
+        } else {
+            throw "Verifikasi System Managed Pagefile gagal."
+        }
     } catch {
         Write-Host "Gagal mengatur pagefile: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Log "Pagefile change failed: $($_.Exception.Message)"
     }
 
-    Write-Host "`nOptimasi registry selesai. Restart atau sign out untuk menerapkan sebagian pengaturan." -ForegroundColor Green
+    Show-OptimizationComparison -Before $before -Attempted $attempted -Succeeded $succeeded
+    Write-Host "Sebagian pengaturan memerlukan sign out atau restart. Persentase sukses menghitung tindakan konfigurasi, bukan persentase peningkatan performa." -ForegroundColor Yellow
 }
 
 function Set-SystemManagedPagefile {
@@ -475,17 +596,27 @@ function Restore-Baseline {
 function Export-SystemReport {
     New-Item -Path $Root -ItemType Directory -Force | Out-Null
     $report = Join-Path $Root ("system-report-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".txt")
-    "=== COMPUTER ===" | Out-File $report
+    $ram = Get-RamSnapshot
+    $services = @(Get-CoreServiceHealth)
+    $top = @(Get-TopMemoryUsage)
+    $issues = @($services | Where-Object { $_.Assessment -ne "OK" })
+    $overall = if ($issues.Count -eq 0) { "OK - service inti yang diperiksa berjalan" } elseif (@($issues | Where-Object { $_.Assessment -eq "RISIKO" }).Count -gt 0) { "RISIKO - ada service inti Disabled" } else { "PERLU PERHATIAN - ada service inti tidak berjalan / tidak terdeteksi" }
+    "=== SYSTEM HEALTH SUMMARY ===" | Out-File $report -Encoding UTF8
+    [pscustomobject]@{ RAMUsedMB=$ram.UsedMB; RAMAvailableMB=$ram.AvailableMB; RAMTotalMB=$ram.TotalMB; RAMLoadPercent=$ram.LoadPercent; CoreServiceStatus=$overall } | Format-List | Out-String | Add-Content $report
+    "=== CORE SERVICE CHECK ===" | Add-Content $report
+    $services | Format-Table -AutoSize | Out-String | Add-Content $report
+    "=== TOP MEMORY PROCESSES (GROUPED BY PROCESS NAME) ===" | Add-Content $report
+    $top | Format-Table -AutoSize | Out-String | Add-Content $report
+    "=== COMPUTER ===" | Add-Content $report
     Get-CimInstance Win32_ComputerSystem | Format-List Manufacturer, Model, TotalPhysicalMemory | Out-String | Add-Content $report
     "=== OPERATING SYSTEM ===" | Add-Content $report
-    Get-CimInstance Win32_OperatingSystem | Format-List Caption, Version, BuildNumber, OSArchitecture, TotalVisibleMemorySize, FreePhysicalMemory | Out-String | Add-Content $report
+    Get-CimInstance Win32_OperatingSystem | Format-List Caption, Version, BuildNumber, OSArchitecture | Out-String | Add-Content $report
     "=== VIDEO CONTROLLER ===" | Add-Content $report
     Get-CimInstance Win32_VideoController | Format-List Name, DriverVersion, AdapterRAM | Out-String | Add-Content $report
-    "=== TOP MEMORY PROCESSES ===" | Add-Content $report
-    Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 30 ProcessName, Id, WorkingSet64 | Format-Table -AutoSize | Out-String | Add-Content $report
     "=== RUNNING SERVICES ===" | Add-Content $report
     Get-CimInstance Win32_Service -Filter "State='Running'" | Select-Object Name, StartMode, State | Format-Table -AutoSize | Out-String | Add-Content $report
     Write-Host "Report dibuat: $report" -ForegroundColor Green
+    Write-Host "Status service inti: $overall"
 }
 
 
@@ -519,6 +650,8 @@ function Get-AppRemovalCatalog {
     $results = @()
     foreach ($rule in $patterns) {
         foreach ($pkg in $installed) {
+            # XboxGameCallableUI is a protected Windows system component, not a consumer Xbox app.
+            if ($pkg.Name -eq "Microsoft.XboxGameCallableUI" -or $pkg.NonRemovable -eq $true) { continue }
             if ($pkg.Name -like "*$($rule.Pattern)*") {
                 $results += [pscustomobject]@{
                     AppLabel = $rule.Label
@@ -661,6 +794,59 @@ function Show-EdgeComponents {
     Write-Host "Edge dan WebView2 tidak dihapus oleh toolkit. Keduanya dapat menjadi dependensi fitur Windows dan aplikasi lain."
 }
 
+
+function Uninstall-MicrosoftEdgeAdvanced {
+    Write-Host "UNINSTALL MICROSOFT EDGE (ADVANCED)" -ForegroundColor Yellow
+    Write-Host "Tindakan ini menghapus browser Edge, bukan WebView2 Runtime. Aplikasi/fitur Windows tertentu dapat bergantung pada Edge." -ForegroundColor Yellow
+    Write-Host "Operasi tidak dijamin didukung pada semua build/region Windows dan tidak dapat dipulihkan oleh baseline toolkit." -ForegroundColor Yellow
+
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $candidateRoots = @(
+        (Join-Path $programFilesX86 "Microsoft\Edge\Application"),
+        (Join-Path $env:ProgramFiles "Microsoft\Edge\Application"),
+        (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\Application")
+    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+
+    $setups = @()
+    foreach ($root in $candidateRoots) {
+        $versions = Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^[0-9]+([.][0-9]+){2,3}$' } |
+            Sort-Object { [version]$_.Name } -Descending
+        foreach ($versionDir in $versions) {
+            $setup = Join-Path $versionDir.FullName "Installer\setup.exe"
+            if (Test-Path -LiteralPath $setup) {
+                $setups += [pscustomobject]@{ Setup=$setup; SystemLevel=($root -notlike "$env:LOCALAPPDATA*"); Version=$versionDir.Name }
+                break
+            }
+        }
+    }
+    if ($setups.Count -eq 0) {
+        Write-Host "Installer Edge tidak ditemukan. Tidak ada perubahan dilakukan." -ForegroundColor Yellow
+        return
+    }
+    $selected = $setups | Select-Object -First 1
+    Write-Host "Versi terdeteksi: $($selected.Version)"
+    Write-Host "Installer: $($selected.Setup)"
+    $confirm = Read-Host "Jika memahami risikonya, ketik UNINSTALL EDGE untuk melanjutkan"
+    if ($confirm -cne "UNINSTALL EDGE") { Write-Host "Dibatalkan."; return }
+
+    try {
+        $arguments = @('--uninstall', '--verbose-logging', '--force-uninstall')
+        if ($selected.SystemLevel) { $arguments += '--system-level' }
+        $process = Start-Process -FilePath $selected.Setup -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
+        Write-Log "Edge uninstall process exited with code $($process.ExitCode)."
+        if ($process.ExitCode -eq 0) {
+            Write-Host "Perintah uninstall Edge selesai. Verifikasi ulang melalui menu audit dan restart Windows." -ForegroundColor Green
+        } else {
+            Write-Host "Installer mengembalikan exit code $($process.ExitCode). Edge mungkin masih terpasang atau kebijakan Windows menolak uninstall." -ForegroundColor Yellow
+        }
+        Write-Host "WebView2 Runtime sengaja tidak dihapus."
+    } catch {
+        Write-Host "Uninstall Edge gagal: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Log "Edge uninstall failed: $($_.Exception.Message)"
+    }
+}
+
 function Show-Menu {
     Clear-Host
     Write-Host "====================================================" -ForegroundColor Cyan
@@ -675,7 +861,7 @@ function Show-Menu {
     Write-Host " 6. List aplikasi UWP / status background"
     Write-Host " 7. Batasi aplikasi background untuk akun ini"
     Write-Host " 8. List aplikasi Startup"
-    Write-Host " 9. List 20 proses pemakai RAM terbesar"
+    Write-Host " 9. List 10 kelompok proses pemakai RAM terbesar"
     Write-Host "10. Terapkan optimasi aman (background, Game DVR, visual, pagefile)"
     Write-Host "11. Aktifkan System Managed Pagefile"
     Write-Host "12. Restore baseline sebelum optimasi"

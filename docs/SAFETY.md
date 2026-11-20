@@ -3,7 +3,7 @@
 - Run only from an elevated Windows PowerShell 5.1 session.
 - Create a Windows System Restore Point before broad changes.
 - The toolkit's JSON baseline is not a full system image.
-- Do not disable Windows Defender, Windows Update, RPC, DHCP, DNS, Plug and Play, Task Scheduler, or driver services.
+- Do not permanently disable Windows Defender, RPC, DHCP, DNS, Plug and Play, Task Scheduler, or driver services. Menu 23 offers an optional, reversible Windows Update pause/disable workflow; use it only temporarily and understand the security impact.
 - Do not disable the pagefile on systems with 4 GB RAM.
 - The custom pagefile feature is restricted to C: and requires Windows to report the OS disk as SSD. It rejects HDD and unknown media types; users of RAID/Storage controllers must verify the disk type separately.
 - Custom pagefile size is fixed (Initial Size = Maximum Size), limited to 1,000-24,000 MB, and requires at least the requested size plus 2,048 MB free on C:. Only configure it after reviewing the current pagefile settings and confirming the change. Restart is required.
@@ -14,6 +14,9 @@
 - Menu 19 requires the exact confirmation `REMOVE EDGE AND UPDATE`. It does not permanently delete service registrations, updater binaries, updater registry data, or WebView2 Runtime. Initial service/task states are saved to `C:\ProgramData\Optimasi-Windows-10-Toolkit\edge-update-backup.json`.
 - If WebView2 is installed, disabling Edge Update also stops its automatic security updates. Keep WebView2 installed because other applications may depend on it; understand the update risk before proceeding. Toolkit restore does not restore Edge or Edge Update settings.
 - Do not force-remove protected Windows Appx packages. Packages marked `NonRemovable=True`, such as `Microsoft.XboxGameCallableUI` on systems where it is marked protected, are intentionally excluded from the removal catalog.
+- Menu 23 stores the original `NoAutoUpdate`/`AUOptions` registry values and `wuauserv`/`UsoSvc` startup modes and states in `C:\ProgramData\Optimasi-Windows-10-Toolkit\windows-update-backup.json` before changes. It requires `DISABLE WINDOWS UPDATE` and offers restore with `RESTORE WINDOWS UPDATE`.
+- Menu 23 does not disable `WaaSMedicSvc` or Windows Defender. Windows servicing/Update Medic may re-enable update services, and service protection may reject changes; inspect the command output. The feature is not guaranteed to permanently block all Windows update mechanisms.
+- Disabling automatic Windows Update leaves the system without automatic security patches and bug fixes. Keep the change temporary, check updates manually, and restore the saved configuration promptly. This feature has not yet been physically tested on a Windows device.
 - The system health report checks a limited list of critical services; an OK result is not a full security audit.
 - Force restart (menu 22) runs `shutdown.exe /r /f /t 0` only after the exact confirmation `RESTART FORCE`. The `/f` flag closes applications without prompting to save; unsaved work can be lost. Save all files before using it.
 - The additional svchost.exe diagnostic is read-only. Its RAM thresholds are triage indicators, not malware detection. Review the mapped services, executable path, and command line; do not terminate svchost.exe directly or disable a service solely because its host process uses substantial RAM.

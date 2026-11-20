@@ -37,7 +37,7 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 16 | Hapus Aplikasi - Hapus aplikasi UWP yang dipilih | Menghapus aplikasi terpilih untuk akun pengguna saat ini. |
 | 17 | Cek Edge dan WebView2 - Periksa komponen browser Microsoft | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
 | 18 | Kesehatan Windows - Periksa RAM dan layanan penting | Menampilkan RAM, layanan inti, status Defender jika tersedia, dan proses pemakai RAM tertinggi. |
-| 19 | Hapus Edge - Hapus browser Microsoft Edge | Menjalankan uninstaller Edge setelah konfirmasi. WebView2 tidak dihapus dan baseline tidak dapat memulihkan Edge. |
+| 19 | Hapus Edge - Hapus browser dan nonaktifkan update Edge | Menjalankan uninstaller Edge, menghentikan/menonaktifkan layanan Edge Update, dan menonaktifkan Scheduled Tasks Edge Update setelah konfirmasi. WebView2 dan file updater bersama dipertahankan. |
 | 20 | Atur Memori Virtual SSD - Atur ukuran pagefile di SSD | Mengatur pagefile tetap pada C: setelah pemeriksaan SSD, ruang kosong, dan konfirmasi. Restart diperlukan. |
 | 21 | Alat Tambahan - Buka fitur diagnosis lainnya | Membuka submenu diagnosis, termasuk pemeriksaan `svchost.exe` dan layanan terkait. |
 | 22 | Restart - Restart paksa komputer | Memulai ulang komputer dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Data yang belum disimpan dapat hilang. |
@@ -168,7 +168,10 @@ Toolkit tidak dimaksudkan untuk menonaktifkan komponen inti Windows. Jangan meno
 - Jangan menonaktifkan service hanya berdasarkan nama atau asumsi bahwa service tersebut tidak diperlukan.
 - Jangan menggunakan RAM cleaner atau registry cleaner sebagai pengganti diagnosis.
 - Uninstall UWP berlaku untuk akun saat ini; kemampuan reinstall bergantung pada ketersediaan paket dan sumber instalasi.
-- Menu 19 menyediakan uninstall Edge tingkat lanjut melalui `setup.exe` bawaan Edge dengan konfirmasi `UNINSTALL EDGE`. Fitur ini berisiko, tidak dijamin pada semua build/region, dan tidak menghapus WebView2. Baseline toolkit tidak dapat memulihkan Edge; siapkan installer resmi untuk memasangnya kembali jika diperlukan.
+- Menu 19 menjalankan uninstaller `setup.exe` Edge, menghentikan dan menonaktifkan layanan `edgeupdate`, `edgeupdatem`, serta `MicrosoftEdgeElevationService` bila tersedia, lalu menonaktifkan Scheduled Tasks pada folder `\\Microsoft\\EdgeUpdate\\`. Konfirmasi wajib: `REMOVE EDGE AND UPDATE`.
+- Menu 19 tidak menghapus service secara permanen, file updater bersama, registry updater, atau WebView2 Runtime. Service dan task dinonaktifkan agar updater tidak berjalan otomatis; snapshot kondisi awal disimpan di `C:\\ProgramData\\Optimasi-Windows-10-Toolkit\\edge-update-backup.json`.
+- Jika WebView2 terpasang, menonaktifkan Edge Update juga menghentikan pembaruan keamanan otomatis WebView2. Aplikasi lain dapat bergantung pada WebView2; pertahankan runtime tersebut dan pahami konsekuensi update sebelum melanjutkan.
+- Uninstall Edge tidak didukung pada semua build/region/kebijakan Windows. Jika Edge tetap terdeteksi setelah proses, periksa hasil menu 17, log toolkit, dan kebijakan perangkat. Baseline tidak dapat memulihkan Edge atau status Edge Update; siapkan installer resmi dan catat status awal sebelum menjalankan fitur.
 - Pengaturan background UWP tidak menghentikan semua aplikasi desktop atau service pihak ketiga.
 
 Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).

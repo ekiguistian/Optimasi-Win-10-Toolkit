@@ -978,6 +978,118 @@ function Uninstall-MicrosoftEdgeAdvanced {
     }
 }
 
+
+function Show-SvchostMemoryDiagnostic {
+    Write-Host ""
+    Write-Host "========== DIAGNOSTIK RAM SVCHOST.EXE ==========" -ForegroundColor Cyan
+    Write-Host "Data Working Set adalah estimasi RAM fisik yang sedang digunakan proses." -ForegroundColor DarkGray
+
+    try {
+        $serviceRows = @(Get-CimInstance Win32_Service -ErrorAction Stop)
+        $processRows = @(Get-CimInstance Win32_Process -Filter "Name='svchost.exe'" -ErrorAction Stop)
+    } catch {
+        Write-Host "Gagal membaca data proses/service: $($_.Exception.Message)" -ForegroundColor Red
+        return
+    }
+
+    if ($processRows.Count -eq 0) {
+        Write-Host "Tidak ditemukan proses svchost.exe." -ForegroundColor Yellow
+        return
+    }
+
+    $diagnostics = @(
+        foreach ($process in $processRows) {
+            $pidValue = [int]$process.ProcessId
+            $memoryMB = $null
+            try {
+                $liveProcess = Get-Process -Id $pidValue -ErrorAction Stop
+                $memoryMB = [math]::Round($liveProcess.WorkingSet64 / 1MB, 1)
+            } catch {
+                $memoryMB = [math]::Round([double]$process.WorkingSetSize / 1MB, 1)
+            }
+
+            $ownedServices = @($serviceRows | Where-Object { [int]$_.ProcessId -eq $pidValue })
+            $assessment = if ($memoryMB -ge 500) { "TINGGI" } elseif ($memoryMB -ge 250) { "PERIKSA" } else { "Normal" }
+            [pscustomobject]@{
+                PID = $pidValue
+                RAM_MB = $memoryMB
+                ServiceCount = $ownedServices.Count
+                Services = if ($ownedServices.Count -gt 0) { ($ownedServices.Name -join ", ") } else { "(tidak terpetakan / proses berubah)" }
+                Assessment = $assessment
+                Path = [string]$process.ExecutablePath
+                CommandLine = [string]$process.CommandLine
+            }
+        }
+    ) | Sort-Object RAM_MB -Descending
+
+    Write-Host ""
+    Write-Host "Daftar svchost.exe berdasarkan penggunaan RAM:" -ForegroundColor Cyan
+    $diagnostics |
+        Select-Object PID, RAM_MB, ServiceCount, Assessment, Services |
+        Format-Table -Wrap -AutoSize
+
+    $highCount = @($diagnostics | Where-Object { $_.RAM_MB -ge 500 }).Count
+    $checkCount = @($diagnostics | Where-Object { $_.RAM_MB -ge 250 }).Count
+    Write-Host ("Total proses: {0} | Proses >=250 MB: {1} | Proses >=500 MB: {2}" -f $diagnostics.Count, $checkCount, $highCount)
+
+    $rawPid = Read-Host "Masukkan PID untuk melihat detail layanan (Enter untuk kembali)"
+    if ([string]::IsNullOrWhiteSpace($rawPid)) { return }
+
+    $selectedPid = 0
+    if (-not [int]::TryParse($rawPid.Trim(), [ref]$selectedPid)) {
+        Write-Host "PID tidak valid." -ForegroundColor Yellow
+        return
+    }
+
+    $selected = $diagnostics | Where-Object { $_.PID -eq $selectedPid } | Select-Object -First 1
+    if (-not $selected) {
+        Write-Host "PID tersebut tidak ditemukan pada daftar svchost.exe saat pemeriksaan." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Detail proses PID $selectedPid:" -ForegroundColor Cyan
+    [pscustomobject]@{
+        PID = $selected.PID
+        "RAM Working Set (MB)" = $selected.RAM_MB
+        "Executable Path" = $(if ($selected.Path) { $selected.Path } else { "Tidak dapat dibaca" })
+        "Command Line" = $(if ($selected.CommandLine) { $selected.CommandLine } else { "Tidak dapat dibaca" })
+        "Penilaian path" = if ($selected.Path -and $selected.Path.TrimEnd("\") -ieq (Join-Path $env:windir "System32\svchost.exe")) { "Lokasi standar Windows" } elseif ($selected.Path) { "LOKASI TIDAK STANDAR - PERIKSA" } else { "Tidak dapat diverifikasi" }
+    } | Format-List
+
+    $detailServices = @($serviceRows | Where-Object { [int]$_.ProcessId -eq $selectedPid } | Sort-Object Name)
+    if ($detailServices.Count -gt 0) {
+        Write-Host "Layanan dalam PID ini:" -ForegroundColor Cyan
+        $detailServices |
+            Select-Object Name, DisplayName, State, StartMode |
+            Format-Table -Wrap -AutoSize
+    } else {
+        Write-Host "Tidak ada layanan yang berhasil dipetakan ke PID ini. Proses mungkin berubah saat pemeriksaan." -ForegroundColor Yellow
+    }
+
+    Write-Host "Ambang indikatif: >=250 MB PERIKSA; >=500 MB TINGGI. Penggunaan tinggi bukan bukti malware." -ForegroundColor Yellow
+    Write-Host "Jangan menghentikan svchost.exe secara langsung. Identifikasi layanan dan dampaknya terlebih dahulu." -ForegroundColor Yellow
+}
+
+function Show-AdditionalToolsMenu {
+    $back = $false
+    do {
+        Clear-Host
+        Write-Host "====================================================" -ForegroundColor Cyan
+        Write-Host " TOOLS TAMBAHAN - DIAGNOSTIK WINDOWS" -ForegroundColor Cyan
+        Write-Host "====================================================" -ForegroundColor Cyan
+        Write-Host "1. Pemeriksaan penggunaan RAM svchost.exe"
+        Write-Host "0. Kembali ke menu utama"
+        Write-Host "----------------------------------------------------"
+        $toolChoice = Read-Host "Pilih tools"
+        switch ($toolChoice) {
+            "1" { Show-SvchostMemoryDiagnostic; Pause-Menu }
+            "0" { $back = $true }
+            default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
+        }
+    } while (-not $back)
+}
+
 function Show-Menu {
     Clear-Host
     Write-Host "====================================================" -ForegroundColor Cyan
@@ -1004,6 +1116,7 @@ function Show-Menu {
     Write-Host "18. Laporan singkat kesehatan service dan konsumsi RAM"
     Write-Host "19. Uninstall Microsoft Edge (advanced / berisiko)"
     Write-Host "20. Atur Virtual Memory custom (SSD C: only, 1000-24000 MB)"
+    Write-Host "21. Tools Tambahan (diagnostik lanjutan)"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"
 }
@@ -1041,6 +1154,7 @@ do {
         "18" { Show-SystemHealthReport; Pause-Menu }
         "19" { Uninstall-MicrosoftEdgeAdvanced; Pause-Menu }
         "20" { Set-CustomPagefileOnC; Pause-Menu }
+        "21" { Show-AdditionalToolsMenu }
         "0"  { $exitRequested = $true }
         default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
     }

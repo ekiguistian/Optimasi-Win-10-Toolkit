@@ -1048,7 +1048,7 @@ function Show-SvchostMemoryDiagnostic {
     }
 
     Write-Host ""
-    Write-Host "Detail proses PID $selectedPid:" -ForegroundColor Cyan
+    Write-Host "Detail proses PID ${selectedPid}:" -ForegroundColor Cyan
     [pscustomobject]@{
         PID = $selected.PID
         "RAM Working Set (MB)" = $selected.RAM_MB

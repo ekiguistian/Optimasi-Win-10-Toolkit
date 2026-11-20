@@ -14,3 +14,4 @@
 - Added custom fixed-size pagefile configuration restricted to a confirmed SSD-backed C: drive, with 1,000-24,000 MB validation, free-space check, baseline capture, confirmation, and rollback attempt.
 - Added a read-only svchost.exe RAM diagnostic under Tools Tambahan, including per-PID Working Set, mapped Windows services, executable path, and command line.
 - Shortened the main menu labels and added a force-restart option with an explicit confirmation and unsaved-data warning.
+- Added menu 23 to temporarily disable Windows automatic updates through policy and Windows Update/Update Orchestrator service settings, with a saved configuration snapshot and restore option.

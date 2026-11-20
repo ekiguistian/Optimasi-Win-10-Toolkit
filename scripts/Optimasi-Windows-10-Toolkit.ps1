@@ -890,48 +890,156 @@ function Remove-SelectedApps {
     Write-Host "Catatan: log menyimpan identitas paket, bukan file instalasi atau backup aplikasi."
 }
 
-function Show-EdgeComponents {
-    Write-Host "`n========== MICROSOFT EDGE / WEBVIEW2 ==========" -ForegroundColor Cyan
-    $roots = @(
-        (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe"),
-        (Join-Path ${env:ProgramFiles(x86)} "Microsoft\Edge\Application\msedge.exe")
-    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+function Get-EdgeAuditState {
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $applicationRoots = @(
+        (Join-Path $env:ProgramFiles "Microsoft\Edge\Application"),
+        (Join-Path $programFilesX86 "Microsoft\Edge\Application"),
+        (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\Application")
+    ) | Where-Object { $_ }
 
-    if ($roots.Count -gt 0) {
-        $edgeRows = foreach ($path in $roots) {
-            $version = (Get-Item -LiteralPath $path).VersionInfo.ProductVersion
-            [pscustomobject]@{ Component="Microsoft Edge"; Version=$version; Path=$path }
+    $applicationDirectories = @()
+    $edgeExecutables = @()
+    foreach ($root in $applicationRoots) {
+        if (Test-Path -LiteralPath $root) {
+            $versionDirectories = @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d+([.]\d+){2,3}$' })
+            foreach ($directory in $versionDirectories) {
+                $applicationDirectories += $directory.FullName
+                $exe = Join-Path $directory.FullName "msedge.exe"
+                if (Test-Path -LiteralPath $exe) { $edgeExecutables += $exe }
+            }
         }
-        $edgeRows | Format-Table -AutoSize
-    } else {
-        Write-Host "Microsoft Edge executable tidak ditemukan pada lokasi standar."
     }
+
+    $uninstallRoots = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+    )
+    $uninstallEntries = @()
+    foreach ($registryRoot in $uninstallRoots) {
+        if (-not (Test-Path -LiteralPath $registryRoot)) { continue }
+        foreach ($key in @(Get-ChildItem -LiteralPath $registryRoot -ErrorAction SilentlyContinue)) {
+            $item = Get-ItemProperty -LiteralPath $key.PSPath -ErrorAction SilentlyContinue
+            if ($item -and $item.DisplayName -eq "Microsoft Edge") {
+                $uninstallEntries += [pscustomobject]@{
+                    DisplayName = $item.DisplayName
+                    DisplayVersion = $item.DisplayVersion
+                    RegistryPath = $key.Name
+                }
+            }
+        }
+    }
+
+    $runningProcesses = @(Get-Process -Name "msedge" -ErrorAction SilentlyContinue)
+    $legacyAppx = @()
+    try {
+        $legacyAppx = @(Get-AppxPackage -AllUsers -Name "Microsoft.MicrosoftEdge" -ErrorAction Stop)
+    } catch {}
+
+    [pscustomobject]@{
+        ApplicationDirectories = @($applicationDirectories | Sort-Object -Unique)
+        Executables = @($edgeExecutables | Sort-Object -Unique)
+        UninstallEntries = @($uninstallEntries)
+        RunningProcesses = @($runningProcesses)
+        LegacyAppxPackages = @($legacyAppx)
+    }
+}
+
+function Show-EdgeAuditReport {
+    param($State, [string]$ReportPath)
+
+    $browserPresent = ($State.Executables.Count -gt 0) -or
+        ($State.UninstallEntries.Count -gt 0) -or
+        ($State.RunningProcesses.Count -gt 0) -or
+        ($State.LegacyAppxPackages.Count -gt 0)
+    $status = if ($browserPresent) { "MASIH TERDETEKSI" } else { "ABSENT - browser Edge tidak terdeteksi pada lokasi dan registrasi yang diperiksa" }
+
+    $lines = @(
+        "MICROSOFT EDGE REMOVAL AUDIT",
+        ("Tanggal: {0}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss")),
+        ("Komputer: {0}" -f $env:COMPUTERNAME),
+        ("Status: {0}" -f $status),
+        "",
+        "=== EXECUTABLE EDGE ==="
+    )
+    if ($State.Executables.Count -gt 0) { $lines += $State.Executables } else { $lines += "Tidak ditemukan pada lokasi instalasi standar." }
+    $lines += @("", "=== REGISTRASI UNINSTALL ===")
+    if ($State.UninstallEntries.Count -gt 0) {
+        foreach ($entry in $State.UninstallEntries) {
+            $lines += ("{0} {1} | {2}" -f $entry.DisplayName, $entry.DisplayVersion, $entry.RegistryPath)
+        }
+    } else { $lines += "Tidak ditemukan." }
+    $lines += @("", "=== PROSES EDGE ===")
+    if ($State.RunningProcesses.Count -gt 0) {
+        foreach ($process in $State.RunningProcesses) { $lines += ("{0} (PID {1})" -f $process.ProcessName, $process.Id) }
+    } else { $lines += "Tidak ada proses msedge.exe yang berjalan." }
+    $lines += @("", "=== LEGACY EDGE APPX ===")
+    if ($State.LegacyAppxPackages.Count -gt 0) {
+        foreach ($package in $State.LegacyAppxPackages) { $lines += ("{0} | NonRemovable={1}" -f $package.Name, $package.NonRemovable) }
+    } else { $lines += "Tidak ditemukan." }
+    $lines += @("", "=== FOLDER APLIKASI VERSI ===")
+    if ($State.ApplicationDirectories.Count -gt 0) { $lines += $State.ApplicationDirectories } else { $lines += "Tidak ditemukan." }
+    $lines += @(
+        "",
+        "WebView2 Runtime, Edge Update service/task, dan komponen Windows yang dilindungi sengaja tidak dihapus atau dianggap sebagai browser Edge.",
+        "Audit ini memeriksa lokasi instalasi standar dan registrasi uninstall; bukan pemindaian menyeluruh seluruh disk.",
+        "Windows Update, servicing, atau kebijakan organisasi dapat memasang kembali Edge."
+    )
+
+    $lines | Set-Content -LiteralPath $ReportPath -Encoding UTF8
+    Write-Host ""
+    Write-Host "========== HASIL AUDIT MICROSOFT EDGE ==========" -ForegroundColor Cyan
+    Write-Host "Status: $status" -ForegroundColor $(if ($browserPresent) { "Yellow" } else { "Green" })
+    Write-Host "Executable ditemukan: $($State.Executables.Count)"
+    Write-Host "Registrasi uninstall: $($State.UninstallEntries.Count)"
+    Write-Host "Proses aktif: $($State.RunningProcesses.Count)"
+    Write-Host "Legacy Edge Appx: $($State.LegacyAppxPackages.Count)"
+    Write-Host "Laporan: $ReportPath" -ForegroundColor Green
+    return (-not $browserPresent)
+}
+
+function Show-EdgeComponents {
+    Write-Host ""
+    Write-Host "========== AUDIT MICROSOFT EDGE / WEBVIEW2 ==========" -ForegroundColor Cyan
+    $state = Get-EdgeAuditState
+    $report = Join-Path $Root ("edge-audit-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".txt")
+    [void](Show-EdgeAuditReport -State $state -ReportPath $report)
 
     $webViewRoots = @(
         (Join-Path $env:ProgramFiles "Microsoft\EdgeWebView\Application"),
-        (Join-Path ${env:ProgramFiles(x86)} "Microsoft\EdgeWebView\Application")
+        (Join-Path ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)")) "Microsoft\EdgeWebView\Application")
     ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
     if ($webViewRoots.Count -gt 0) {
         foreach ($path in $webViewRoots) {
             $versions = Get-ChildItem -LiteralPath $path -Directory -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -match '^\d+(\.\d+){2,3}$' } |
+                Where-Object { $_.Name -match '^\d+([.]\d+){2,3}$' } |
                 Select-Object -ExpandProperty Name
-            Write-Host "WebView2 Runtime: $($versions -join ', ') [$path]"
+            Write-Host "WebView2 Runtime dipertahankan: $($versions -join ', ') [$path]"
         }
     } else {
         Write-Host "WebView2 Runtime tidak terdeteksi pada lokasi standar."
     }
-
-    Write-Host "Edge dan WebView2 tidak dihapus oleh toolkit. Keduanya dapat menjadi dependensi fitur Windows dan aplikasi lain."
 }
 
-
 function Uninstall-MicrosoftEdgeAdvanced {
-    Write-Host "UNINSTALL MICROSOFT EDGE (ADVANCED)" -ForegroundColor Yellow
-    Write-Host "Tindakan ini menghapus browser Edge, bukan WebView2 Runtime. Aplikasi/fitur Windows tertentu dapat bergantung pada Edge." -ForegroundColor Yellow
-    Write-Host "Operasi tidak dijamin didukung pada semua build/region Windows dan tidak dapat dipulihkan oleh baseline toolkit." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "========== UNINSTALL + CLEANUP + AUDIT MICROSOFT EDGE ==========" -ForegroundColor Yellow
+    Write-Host "Fitur ini menghapus browser Microsoft Edge melalui uninstaller bawaan, membersihkan folder aplikasi versi yang tersisa, lalu membuat laporan audit." -ForegroundColor Yellow
+    Write-Host "WebView2 Runtime, Edge Update, data profil pengguna, dan komponen Windows yang dilindungi TIDAK dihapus." -ForegroundColor Yellow
+    Write-Host "Uninstall dapat mengganggu aplikasi, widget, PWA, dan fitur Windows yang bergantung pada Edge." -ForegroundColor Yellow
+    Write-Host "Tidak semua build/region/policy Windows mengizinkan uninstall. Windows Update atau kebijakan organisasi dapat memasang Edge kembali." -ForegroundColor Yellow
 
-    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $initialState = Get-EdgeAuditState
+    $report = Join-Path $Root ("edge-removal-report-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".txt")
+    if ($initialState.RunningProcesses.Count -gt 0) {
+        Write-Host "Edge sedang berjalan. Tutup semua jendela Edge lalu jalankan menu ini kembali. Toolkit tidak akan memaksa menutup browser agar data pengguna tidak hilang." -ForegroundColor Red
+        [void](Show-EdgeAuditReport -State $initialState -ReportPath $report)
+        return
+    }
+
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
     $candidateRoots = @(
         (Join-Path $programFilesX86 "Microsoft\Edge\Application"),
         (Join-Path $env:ProgramFiles "Microsoft\Edge\Application"),
@@ -940,41 +1048,81 @@ function Uninstall-MicrosoftEdgeAdvanced {
 
     $setups = @()
     foreach ($root in $candidateRoots) {
-        $versions = Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -match '^[0-9]+([.][0-9]+){2,3}$' } |
-            Sort-Object { [version]$_.Name } -Descending
+        $versions = @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+([.]\d+){2,3}$' } |
+            Sort-Object { [version]$_.Name } -Descending)
         foreach ($versionDir in $versions) {
             $setup = Join-Path $versionDir.FullName "Installer\setup.exe"
             if (Test-Path -LiteralPath $setup) {
-                $setups += [pscustomobject]@{ Setup=$setup; SystemLevel=($root -notlike "$env:LOCALAPPDATA*"); Version=$versionDir.Name }
+                $setups += [pscustomobject]@{
+                    Setup = $setup
+                    SystemLevel = ($root -notlike "$env:LOCALAPPDATA*")
+                    Version = $versionDir.Name
+                }
                 break
             }
         }
     }
+
     if ($setups.Count -eq 0) {
-        Write-Host "Installer Edge tidak ditemukan. Tidak ada perubahan dilakukan." -ForegroundColor Yellow
+        Write-Host "Uninstaller Edge tidak ditemukan. Tidak ada file yang dihapus secara paksa." -ForegroundColor Yellow
+        [void](Show-EdgeAuditReport -State $initialState -ReportPath $report)
         return
     }
+
     $selected = $setups | Select-Object -First 1
     Write-Host "Versi terdeteksi: $($selected.Version)"
-    Write-Host "Installer: $($selected.Setup)"
-    $confirm = Read-Host "Jika memahami risikonya, ketik UNINSTALL EDGE untuk melanjutkan"
-    if ($confirm -cne "UNINSTALL EDGE") { Write-Host "Dibatalkan."; return }
+    Write-Host "Uninstaller: $($selected.Setup)"
+    Write-Host "Simpan bookmark/password penting sebelum melanjutkan. Data profil tidak dihapus oleh fitur ini."
+    $confirm = Read-Host "Ketik UNINSTALL EDGE AND CLEANUP untuk melanjutkan"
+    if ($confirm -cne "UNINSTALL EDGE AND CLEANUP") {
+        Write-Host "Dibatalkan. Tidak ada perubahan dilakukan."
+        return
+    }
 
     try {
-        $arguments = @('--uninstall', '--verbose-logging', '--force-uninstall')
-        if ($selected.SystemLevel) { $arguments += '--system-level' }
+        $arguments = @("--uninstall", "--verbose-logging", "--force-uninstall")
+        if ($selected.SystemLevel) { $arguments += "--system-level" }
         $process = Start-Process -FilePath $selected.Setup -ArgumentList $arguments -Wait -PassThru -ErrorAction Stop
         Write-Log "Edge uninstall process exited with code $($process.ExitCode)."
-        if ($process.ExitCode -eq 0) {
-            Write-Host "Perintah uninstall Edge selesai. Verifikasi ulang melalui menu audit dan restart Windows." -ForegroundColor Green
+
+        $afterUninstall = Get-EdgeAuditState
+        if ($afterUninstall.Executables.Count -eq 0 -and $afterUninstall.RunningProcesses.Count -eq 0) {
+            foreach ($directory in $afterUninstall.ApplicationDirectories) {
+                try {
+                    if ((Test-Path -LiteralPath $directory) -and
+                        ([IO.Path]::GetFileName($directory) -match '^\d+([.]\d+){2,3}$') -and
+                        -not (Test-Path -LiteralPath (Join-Path $directory "msedge.exe"))) {
+                        Remove-Item -LiteralPath $directory -Recurse -Force -ErrorAction Stop
+                        Write-Log "Removed residual Edge application version folder: $directory"
+                    }
+                } catch {
+                    Write-Host "Tidak dapat membersihkan folder $directory : $($_.Exception.Message)" -ForegroundColor Yellow
+                    Write-Log "Edge residual cleanup failed for $directory : $($_.Exception.Message)"
+                }
+            }
         } else {
-            Write-Host "Installer mengembalikan exit code $($process.ExitCode). Edge mungkin masih terpasang atau kebijakan Windows menolak uninstall." -ForegroundColor Yellow
+            Write-Host "Executable/proses Edge masih ditemukan. Folder aplikasi tidak dibersihkan secara paksa." -ForegroundColor Yellow
         }
-        Write-Host "WebView2 Runtime sengaja tidak dihapus."
+
+        $finalState = Get-EdgeAuditState
+        $isAbsent = Show-EdgeAuditReport -State $finalState -ReportPath $report
+        if ($process.ExitCode -ne 0) {
+            Write-Host "Uninstaller mengembalikan exit code $($process.ExitCode)." -ForegroundColor Yellow
+        }
+        if ($isAbsent) {
+            Write-Host "AUDIT: browser Edge tidak terdeteksi pada lokasi standar dan registrasi uninstall yang diperiksa." -ForegroundColor Green
+        } else {
+            Write-Host "AUDIT: Edge atau jejak registrasi masih terdeteksi. Periksa laporan; jangan hapus registry/file secara manual." -ForegroundColor Yellow
+        }
+        Write-Host "Restart Windows, lalu jalankan menu 17 untuk audit ulang."
+        Write-Host "WebView2 Runtime, Edge Update, dan data profil pengguna tetap dipertahankan."
+        Write-Log "Edge removal audit completed. Absent=$isAbsent; ExitCode=$($process.ExitCode). Report=$report"
     } catch {
-        Write-Host "Uninstall Edge gagal: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Log "Edge uninstall failed: $($_.Exception.Message)"
+        Write-Host "Uninstall/cleanup gagal: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Log "Edge uninstall/cleanup failed: $($_.Exception.Message)"
+        $finalState = Get-EdgeAuditState
+        [void](Show-EdgeAuditReport -State $finalState -ReportPath $report)
     }
 }
 
@@ -1000,9 +1148,9 @@ function Show-Menu {
     Write-Host "14. Buka folder backup dan log"
     Write-Host "15. List aplikasi bawaan yang dapat dievaluasi untuk uninstall"
     Write-Host "16. Uninstall aplikasi terpilih (UWP / Appx)"
-    Write-Host "17. Audit Microsoft Edge dan WebView2 (read-only)"
+    Write-Host "17. Audit Microsoft Edge, WebView2, dan status instalasi"
     Write-Host "18. Laporan singkat kesehatan service dan konsumsi RAM"
-    Write-Host "19. Uninstall Microsoft Edge (advanced / berisiko)"
+    Write-Host "19. Uninstall Edge + cleanup file + laporan verifikasi"
     Write-Host "20. Atur Virtual Memory custom (SSD C: only, 1000-24000 MB)"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"

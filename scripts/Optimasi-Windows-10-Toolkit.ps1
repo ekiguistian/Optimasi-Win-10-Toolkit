@@ -1386,8 +1386,9 @@ function Restore-WindowsUpdateAutomatic {
         Write-Host "Kebijakan registry Windows Update dipulihkan." -ForegroundColor Green
         Write-Log "Windows Update registry policy restored."
     } catch {
-        Write-Host "Gagal memulihkan kebijakan registry: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Gagal membaca atau memulihkan backup Windows Update: $($_.Exception.Message)" -ForegroundColor Red
         Write-Log "Windows Update registry restore failed: $($_.Exception.Message)"
+        return
     }
 
     Set-WindowsUpdateServices -Mode Restore -Services @($snapshot.Services)

@@ -36,9 +36,9 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 14 | Folder backup dan log | Membuka direktori penyimpanan baseline dan log toolkit. |
 | 15 | Katalog aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
 | 16 | Uninstall aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
-| 17 | Audit Edge dan WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
+| 17 | Audit Edge dan WebView2 | Memeriksa executable, registrasi uninstall, proses browser, legacy Edge Appx, dan keberadaan WebView2; menghasilkan laporan audit. |
 | 18 | Laporan kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
-| 19 | Uninstall Microsoft Edge (advanced) | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
+| 19 | Uninstall Edge + cleanup + report | Menjalankan uninstaller bawaan, membersihkan sisa folder aplikasi versi hanya setelah executable browser tidak ditemukan, lalu membuat laporan verifikasi. Memerlukan konfirmasi `UNINSTALL EDGE AND CLEANUP`. WebView2, Edge Update, data profil pengguna, dan komponen Windows terlindungi tetap dipertahankan. Tidak dijamin pada semua build/region/policy dan tidak dapat dipulihkan oleh baseline. |
 | 20 | Custom Virtual Memory (SSD C: only) | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
 | 0 | Keluar | Menutup toolkit. |
 
@@ -152,7 +152,7 @@ Toolkit tidak dimaksudkan untuk menonaktifkan komponen inti Windows. Jangan meno
 - Jangan menonaktifkan service hanya berdasarkan nama atau asumsi bahwa service tersebut tidak diperlukan.
 - Jangan menggunakan RAM cleaner atau registry cleaner sebagai pengganti diagnosis.
 - Uninstall UWP berlaku untuk akun saat ini; kemampuan reinstall bergantung pada ketersediaan paket dan sumber instalasi.
-- Menu 19 menyediakan uninstall Edge tingkat lanjut melalui `setup.exe` bawaan Edge dengan konfirmasi `UNINSTALL EDGE`. Fitur ini berisiko, tidak dijamin pada semua build/region, dan tidak menghapus WebView2. Baseline toolkit tidak dapat memulihkan Edge; siapkan installer resmi untuk memasangnya kembali jika diperlukan.
+- Menu 19 menjalankan uninstaller `setup.exe` bawaan Edge dengan konfirmasi `UNINSTALL EDGE AND CLEANUP`, membersihkan sisa folder aplikasi versi yang sudah tidak berisi `msedge.exe`, lalu membuat laporan `edge-removal-report-*.txt` di folder toolkit. Menu 17 dapat digunakan untuk audit ulang. Fitur ini tidak menghapus WebView2 Runtime, Edge Update, data profil pengguna (bookmark/password/history), shortcut/protokol Windows, atau legacy Edge Appx yang dilindungi. Laporan memeriksa lokasi instalasi standar dan registrasi uninstall, bukan seluruh disk; status ABSENT bukan jaminan Edge tidak akan dipasang kembali oleh Windows Update atau kebijakan organisasi. Baseline toolkit tidak dapat memulihkan Edge; siapkan installer resmi untuk memasangnya kembali jika diperlukan.
 - Pengaturan background UWP tidak menghentikan semua aplikasi desktop atau service pihak ketiga.
 
 Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).

@@ -2,7 +2,7 @@
 
 Toolkit berbasis **Windows PowerShell 5.1** untuk membantu pengguna laptop/PC dengan sumber daya terbatas menganalisis penggunaan RAM dan mengelola sebagian beban latar belakang Windows 10.
 
-> **Status: versi awal / experimental.** Belum dinyatakan siap produksi. Uji pada perangkat cadangan atau setelah membuat System Restore Point. Baca script dan pahami setiap perubahan sebelum menjalankan fitur yang mengubah konfigurasi Windows.
+> **Status pengujian:** Fitur menu **1–21 telah diuji langsung oleh pengguna dan dilaporkan berjalan lancar**. Fitur menu **22 (Restart paksa) belum dikonfirmasi pengujiannya**. Proyek tetap perlu diuji pada perangkat dan konfigurasi Windows lain. Buat System Restore Point, backup data penting, dan pahami dampak setiap perubahan sebelum menjalankan fitur yang mengubah konfigurasi Windows.
 
 ## Tujuan proyek
 
@@ -176,15 +176,14 @@ Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).
 
 ## Status pengujian
 
-- [ ] Parse check pada Windows PowerShell 5.1.
-- [ ] Uji pada Windows 10 Pro 22H2 x64.
-- [ ] Uji pada laptop RAM 4 GB dengan integrated GPU/shared memory.
-- [ ] Uji baseline dan restore pada VM/snapshot.
-- [ ] Uji perubahan service pada beberapa vendor laptop.
-- [ ] Uji pembatasan background UWP dan uninstall pada akun uji.
-- [ ] Review seluruh perubahan registry dan pagefile.
+- [x] Fitur menu **1–21** telah diuji langsung oleh pengguna; seluruhnya dilaporkan berjalan lancar.
+- [ ] Menu **22 — Restart paksa** belum dikonfirmasi pengujiannya. Fitur ini menutup aplikasi tanpa dialog penyimpanan dan berisiko menghilangkan data yang belum disimpan.
+- [x] Validasi parser Windows PowerShell 5.1 dan PowerShell 7 pada GitHub Actions.
+- [x] Pemeriksaan PSScriptAnalyzer pada GitHub Actions.
+- [ ] Uji lintas perangkat dan vendor laptop.
+- [ ] Uji baseline dan restore pada VM/snapshot serta matriks konfigurasi Windows yang lebih luas.
 
-**Catatan:** CI melakukan validasi statis; status CI bukan bukti bahwa semua fungsi telah aman diuji pada perangkat fisik.
+**Catatan:** Hasil uji menu 1–21 berasal dari pengujian pengguna. CI hanya memvalidasi parser dan analisis statis; CI bukan bukti bahwa seluruh fungsi telah diuji pada perangkat fisik atau kompatibel dengan semua konfigurasi.
 
 ## Roadmap
 

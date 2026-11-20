@@ -2,7 +2,7 @@
 
 Toolkit berbasis **Windows PowerShell 5.1** untuk membantu pengguna laptop/PC dengan sumber daya terbatas menganalisis penggunaan RAM dan mengelola sebagian beban latar belakang Windows 10.
 
-> **Status: versi awal / experimental.** Belum dinyatakan siap produksi. Uji pada perangkat cadangan atau setelah membuat System Restore Point. Baca script dan pahami setiap perubahan sebelum menjalankan fitur yang mengubah konfigurasi Windows.
+> **Status pengujian:** Fitur menu **1–21 telah diuji langsung oleh pengguna dan dilaporkan berjalan lancar**. Fitur menu **22 (Restart paksa) belum dikonfirmasi pengujiannya**. Proyek tetap perlu diuji pada perangkat dan konfigurasi Windows lain. Buat System Restore Point, backup data penting, dan pahami dampak setiap perubahan sebelum menjalankan fitur yang mengubah konfigurasi Windows.
 
 ## Tujuan proyek
 
@@ -19,27 +19,29 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 
 | Menu | Fitur | Fungsi |
 |---:|---|---|
-| 1 | Ringkasan penggunaan RAM | Menampilkan informasi memori fisik dan penggunaan RAM saat ini. |
-| 2 | Service yang sedang Running | Menampilkan daftar service Windows yang sedang berjalan untuk audit. |
-| 3 | Service opsional | Menampilkan kandidat service yang dapat dievaluasi berdasarkan kebutuhan perangkat. |
-| 4 | Disable service terpilih | Menonaktifkan service opsional yang dipilih secara manual. Gunakan hanya jika memahami dampaknya. |
-| 5 | Set service ke Manual | Mengubah startup type service terpilih menjadi Manual, sebagai alternatif yang lebih konservatif daripada Disabled. |
-| 6 | Aplikasi UWP / background | Menampilkan aplikasi UWP dan informasi pengaturan aktivitas background yang dapat dibaca. |
-| 7 | Batasi background UWP | Mengubah izin background untuk aplikasi yang didukung pada akun pengguna saat ini. Tidak mengendalikan semua aplikasi desktop. |
-| 8 | Aplikasi Startup | Menampilkan program startup yang terdeteksi melalui WMI/CIM. |
-| 9 | Proses pemakai RAM terbesar | Mengelompokkan proses berdasarkan nama dan menjumlahkan Working Set; menandai kelompok di atas 250 MB untuk diperiksa dan 500 MB sebagai tinggi. Ambang ini indikatif, bukan diagnosis malware. |
-| 10 | Optimasi aman + perbandingan | Menerapkan pengaturan terbatas terkait aplikasi background, Game DVR, visual effects, dan pagefile. Menampilkan jumlah tindakan berhasil, persentase tindakan sukses, serta perubahan estimasi RAM terpakai sebelum/sesudah. |
+| 1 | Ringkasan RAM | Menampilkan informasi memori fisik dan penggunaan RAM saat ini. |
+| 2 | Layanan aktif | Menampilkan daftar service Windows yang sedang berjalan untuk audit. |
+| 3 | Layanan opsional | Menampilkan kandidat service yang dapat dievaluasi berdasarkan kebutuhan perangkat. |
+| 4 | Matikan layanan | Menonaktifkan service opsional yang dipilih secara manual. Gunakan hanya jika memahami dampaknya. |
+| 5 | Atur layanan Manual | Mengubah startup type service terpilih menjadi Manual, sebagai alternatif yang lebih konservatif daripada Disabled. |
+| 6 | Aplikasi UWP | Menampilkan aplikasi UWP dan informasi pengaturan aktivitas background yang dapat dibaca. |
+| 7 | Aplikasi latar | Mengubah izin background untuk aplikasi yang didukung pada akun pengguna saat ini. Tidak mengendalikan semua aplikasi desktop. |
+| 8 | Aplikasi startup | Menampilkan program startup yang terdeteksi melalui WMI/CIM. |
+| 9 | Proses boros RAM | Mengelompokkan proses berdasarkan nama dan menjumlahkan Working Set; menandai kelompok di atas 250 MB untuk diperiksa dan 500 MB sebagai tinggi. Ambang ini indikatif, bukan diagnosis malware. |
+| 10 | Optimasi aman | Menerapkan pengaturan terbatas terkait aplikasi background, Game DVR, visual effects, dan pagefile. Menampilkan jumlah tindakan berhasil, persentase tindakan sukses, serta perubahan estimasi RAM terpakai sebelum/sesudah. |
 
-| 11 | System Managed Pagefile | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. Disarankan untuk perangkat dengan RAM terbatas; jangan menonaktifkan pagefile. |
-| 12 | Restore baseline | Memulihkan pengaturan registry, service yang dicatat, dan konfigurasi pagefile dari baseline yang dibuat toolkit. Bukan full system restore. |
-| 13 | Export laporan sistem | Mengekspor ringkasan informasi sistem untuk kebutuhan troubleshooting. |
-| 14 | Folder backup dan log | Membuka direktori penyimpanan baseline dan log toolkit. |
-| 15 | Katalog aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
-| 16 | Uninstall aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
-| 17 | Audit Edge dan WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
-| 18 | Laporan kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
-| 19 | Uninstall Microsoft Edge (advanced) | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
-| 20 | Custom Virtual Memory (SSD C: only) | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
+| 11 | Memori virtual otomatis | Mengaktifkan pengelolaan pagefile otomatis oleh Windows. Disarankan untuk perangkat dengan RAM terbatas; jangan menonaktifkan pagefile. |
+| 12 | Pulihkan pengaturan | Memulihkan pengaturan registry, service yang dicatat, dan konfigurasi pagefile dari baseline yang dibuat toolkit. Bukan full system restore. |
+| 13 | Laporan sistem | Mengekspor ringkasan informasi sistem untuk kebutuhan troubleshooting. |
+| 14 | Folder backup / log | Membuka direktori penyimpanan baseline dan log toolkit. |
+| 15 | Aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
+| 16 | Hapus aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
+| 17 | Cek Edge / WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime. |
+| 18 | Kesehatan sistem | Menampilkan RAM saat ini, status service inti, status Microsoft Defender jika dapat dibaca, dan 10 kelompok proses dengan RAM tertinggi. |
+| 19 | Hapus Edge | Menjalankan uninstaller bawaan Edge setelah konfirmasi eksplisit. Tidak menghapus WebView2 dan tidak dijamin tersedia/berhasil pada semua build atau kebijakan Windows. Tidak dapat dipulihkan oleh baseline. |
+| 20 | Atur memori virtual SSD | Mengatur pagefile tetap 1.000-24.000 MB hanya pada C: setelah memverifikasi disk C sebagai SSD, ruang kosong, menampilkan konfigurasi lama, dan meminta konfirmasi eksplisit. Pagefile pada partisi lain dihapus dari konfigurasi. Restart diperlukan. |
+| 21 | Tools tambahan | Membuka submenu diagnostik, termasuk pemeriksaan RAM `svchost.exe`, PID, layanan, dan lokasi executable. Pemeriksaan bersifat read-only. |
+| 22 | Restart paksa | Memulai ulang Windows dan memaksa aplikasi menutup setelah konfirmasi `RESTART FORCE`. Aplikasi yang belum menyimpan data akan kehilangan perubahan. |
 | 0 | Keluar | Menutup toolkit. |
 
 ## Persyaratan
@@ -105,7 +107,22 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 7. Restart bila diminta atau setelah perubahan service/pagefile, lalu tunggu beberapa menit agar aktivitas startup selesai.
 8. Bandingkan kembali Available Memory, proses pemakai RAM, CPU, aktivitas disk, dan responsivitas. Jangan menilai hasil hanya dari angka Used RAM.
 9. Jika terjadi masalah, gunakan menu **12** untuk memulihkan bagian konfigurasi yang tercakup dalam baseline. Jika Windows mengalami masalah serius, gunakan System Restore atau backup sistem.
+10. Gunakan menu **22** hanya jika memang perlu restart paksa. Simpan semua pekerjaan terlebih dahulu karena aplikasi akan ditutup tanpa dialog penyimpanan.
 
+
+### Restart paksa Windows (menu 22)
+
+- Menu ini menjalankan `shutdown.exe /r /f /t 0` setelah pengguna mengetik `RESTART FORCE`.
+- Parameter `/f` memaksa aplikasi menutup dan dapat menyebabkan data yang belum disimpan hilang. Simpan pekerjaan terlebih dahulu.
+- Jangan gunakan sebagai pengganti restart normal bila aplikasi masih memiliki pekerjaan terbuka.
+
+### Cek RAM svchost.exe (menu 21 → 1)
+
+- Daftar proses `svchost.exe` diurutkan berdasarkan Working Set dan menampilkan PID, RAM (MB), jumlah layanan, nama layanan, serta penanda indikatif.
+- Masukkan PID untuk melihat executable path, command line, dan rincian nama layanan, display name, status, serta startup type.
+- Ambang `>=250 MB` adalah PERIKSA dan `>=500 MB` adalah TINGGI. Ambang hanya membantu menentukan prioritas pemeriksaan; bukan bukti malware atau kerusakan.
+- Satu proses `svchost.exe` dapat menampung beberapa layanan Windows. Konsumsi RAM harus ditelusuri ke layanan dan aktivitas terkait, bukan dengan menghentikan proses host.
+- Pemeriksaan ini read-only dan tidak menghentikan proses, mengubah startup type, atau menonaktifkan layanan.
 
 ### Membaca laporan RAM dan hasil optimasi
 
@@ -159,15 +176,14 @@ Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).
 
 ## Status pengujian
 
-- [ ] Parse check pada Windows PowerShell 5.1.
-- [ ] Uji pada Windows 10 Pro 22H2 x64.
-- [ ] Uji pada laptop RAM 4 GB dengan integrated GPU/shared memory.
-- [ ] Uji baseline dan restore pada VM/snapshot.
-- [ ] Uji perubahan service pada beberapa vendor laptop.
-- [ ] Uji pembatasan background UWP dan uninstall pada akun uji.
-- [ ] Review seluruh perubahan registry dan pagefile.
+- [x] Fitur menu **1–21** telah diuji langsung oleh pengguna; seluruhnya dilaporkan berjalan lancar.
+- [ ] Menu **22 — Restart paksa** belum dikonfirmasi pengujiannya. Fitur ini menutup aplikasi tanpa dialog penyimpanan dan berisiko menghilangkan data yang belum disimpan.
+- [x] Validasi parser Windows PowerShell 5.1 dan PowerShell 7 pada GitHub Actions.
+- [x] Pemeriksaan PSScriptAnalyzer pada GitHub Actions.
+- [ ] Uji lintas perangkat dan vendor laptop.
+- [ ] Uji baseline dan restore pada VM/snapshot serta matriks konfigurasi Windows yang lebih luas.
 
-**Catatan:** CI melakukan validasi statis; status CI bukan bukti bahwa semua fungsi telah aman diuji pada perangkat fisik.
+**Catatan:** Hasil uji menu 1–21 berasal dari pengujian pengguna. CI hanya memvalidasi parser dan analisis statis; CI bukan bukti bahwa seluruh fungsi telah diuji pada perangkat fisik atau kompatibel dengan semua konfigurasi.
 
 ## Roadmap
 

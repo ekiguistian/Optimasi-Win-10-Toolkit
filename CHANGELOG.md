@@ -12,3 +12,5 @@
 - Excluded protected/non-removable Appx packages such as XboxGameCallableUI from the uninstall catalog.
 - Added an explicit-confirmation advanced Edge uninstaller that preserves WebView2 and documents restore limitations.
 - Added custom fixed-size pagefile configuration restricted to a confirmed SSD-backed C: drive, with 1,000-24,000 MB validation, free-space check, baseline capture, confirmation, and rollback attempt.
+- Added a read-only svchost.exe RAM diagnostic under Tools Tambahan, including per-PID Working Set, mapped Windows services, executable path, and command line.
+- Shortened the main menu labels and added a force-restart option with an explicit confirmation and unsaved-data warning.

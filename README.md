@@ -118,7 +118,7 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 ### Custom Virtual Memory / Pagefile (menu 20)
 
 - Masukkan ukuran dalam MB, misalnya `4000` untuk pagefile tetap 4.000 MB. Initial Size dan Maximum Size dibuat sama.
-- Batas input adalah 1.000-24.000 MB. Fitur hanya berjalan jika Windows melaporkan disk fisik di belakang drive C sebagai `SSD`. Jika `HDD` atau `Unspecified`, proses dibatalkan; perangkat RAID/Storage Controller yang tidak melaporkan jenis media secara jelas harus diverifikasi manual.
+- Batas input adalah 1.000-24.000 MB. Deteksi SSD menggunakan `Get-Disk.MediaType`, `Get-PhysicalDisk.MediaType`, dan identitas model `Win32_DiskDrive`. Jika salah satu sumber secara eksplisit menunjukkan HDD, proses ditolak. Jika semua sumber hanya melaporkan `Unspecified`/tidak tersedia (umum pada sebagian SSD SATA/AHCI), toolkit menampilkan model dan bus lalu meminta konfirmasi fisik dengan mengetik `CONFIRM SSD`. Bus SATA saja tidak dianggap bukti SSD; konfirmasi manual menjadi tanggung jawab pengguna.
 - Lokasi yang dibuat adalah `C:\\pagefile.sys`. Semua konfigurasi pagefile manual yang ada pada partisi lain akan dihapus agar hanya C: yang dikonfigurasi.
 - Fitur memerlukan ruang kosong C: minimal sebesar ukuran pagefile ditambah cadangan 2.048 MB.
 - Sebelum perubahan, toolkit menampilkan disk, tipe media, ruang kosong, dan konfigurasi pagefile saat ini. Pengguna harus mengetik `SET PAGEFILE` untuk melanjutkan.

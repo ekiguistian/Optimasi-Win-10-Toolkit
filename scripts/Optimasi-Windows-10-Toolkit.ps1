@@ -1078,7 +1078,7 @@ function Show-AdditionalToolsMenu {
         Write-Host "====================================================" -ForegroundColor Cyan
         Write-Host " TOOLS TAMBAHAN - DIAGNOSTIK WINDOWS" -ForegroundColor Cyan
         Write-Host "====================================================" -ForegroundColor Cyan
-        Write-Host "1. Pemeriksaan penggunaan RAM svchost.exe"
+        Write-Host "1. Cek RAM svchost.exe"
         Write-Host "0. Kembali ke menu utama"
         Write-Host "----------------------------------------------------"
         $toolChoice = Read-Host "Pilih tools"
@@ -1118,31 +1118,31 @@ function Restart-WindowsForce {
 function Show-Menu {
     Clear-Host
     Write-Host "====================================================" -ForegroundColor Cyan
-    Write-Host " WINDOWS 10 RAM & RESPONSIVENESS TOOLKIT" -ForegroundColor Cyan
+    Write-Host " OPTIMASI WINDOWS 10 TOOLKIT" -ForegroundColor Cyan
     Write-Host " Target: Windows 10 22H2 x64 | PowerShell 5.1"
     Write-Host "====================================================" -ForegroundColor Cyan
     Write-Host " 1. Ringkasan RAM"
-    Write-Host " 2. Service aktif"
-    Write-Host " 3. Service opsional"
-    Write-Host " 4. Nonaktifkan service"
-    Write-Host " 5. Set service Manual"
+    Write-Host " 2. Layanan aktif"
+    Write-Host " 3. Layanan opsional"
+    Write-Host " 4. Matikan layanan"
+    Write-Host " 5. Atur layanan Manual"
     Write-Host " 6. Aplikasi UWP"
-    Write-Host " 7. Atur background UWP"
+    Write-Host " 7. Aplikasi latar"
     Write-Host " 8. Aplikasi startup"
-    Write-Host " 9. Proses pemakai RAM"
+    Write-Host " 9. Proses boros RAM"
     Write-Host "10. Optimasi aman"
-    Write-Host "11. Pagefile otomatis"
-    Write-Host "12. Pulihkan baseline"
+    Write-Host "11. Memori virtual otomatis"
+    Write-Host "12. Pulihkan pengaturan"
     Write-Host "13. Laporan sistem"
-    Write-Host "14. Folder backup dan log"
-    Write-Host "15. Katalog aplikasi bawaan"
+    Write-Host "14. Folder backup / log"
+    Write-Host "15. Aplikasi bawaan"
     Write-Host "16. Hapus aplikasi UWP"
-    Write-Host "17. Audit Edge / WebView2"
+    Write-Host "17. Cek Edge / WebView2"
     Write-Host "18. Kesehatan sistem"
-    Write-Host "19. Hapus Microsoft Edge"
-    Write-Host "20. Atur pagefile SSD"
+    Write-Host "19. Hapus Edge"
+    Write-Host "20. Atur memori virtual SSD"
     Write-Host "21. Tools tambahan"
-    Write-Host "22. Restart paksa Windows"
+    Write-Host "22. Restart paksa"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"
 }

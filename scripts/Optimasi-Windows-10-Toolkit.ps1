@@ -1294,7 +1294,7 @@ function Show-Menu {
     Write-Host "16. Hapus Aplikasi - Hapus aplikasi UWP yang dipilih"
     Write-Host "17. Cek Edge dan WebView2 - Periksa komponen browser Microsoft"
     Write-Host "18. Kesehatan Windows - Periksa RAM dan layanan penting"
-    Write-Host "19. Hapus Edge - Hapus browser Microsoft Edge"
+    Write-Host "19. Hapus Edge - Hapus browser dan nonaktifkan update Edge"
     Write-Host "20. Atur Memori Virtual SSD - Atur ukuran pagefile di SSD"
     Write-Host "21. Alat Tambahan - Buka fitur diagnosis lainnya"
     Write-Host "22. Restart - Restart paksa komputer"

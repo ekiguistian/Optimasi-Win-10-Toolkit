@@ -1090,33 +1090,59 @@ function Show-AdditionalToolsMenu {
     } while (-not $back)
 }
 
+
+function Restart-WindowsForce {
+    Write-Host ""
+    Write-Host "PERINGATAN: Restart paksa akan menutup semua aplikasi tanpa menyimpan pekerjaan." -ForegroundColor Red
+    Write-Host "Dokumen atau data yang belum disimpan dapat hilang." -ForegroundColor Yellow
+    $confirmation = Read-Host "Ketik RESTART FORCE untuk melanjutkan"
+    if ($confirmation -cne "RESTART FORCE") {
+        Write-Host "Restart dibatalkan." -ForegroundColor Yellow
+        return
+    }
+
+    $shutdownPath = Join-Path $env:windir "System32\shutdown.exe"
+    if (-not (Test-Path -LiteralPath $shutdownPath -PathType Leaf)) {
+        Write-Host "shutdown.exe tidak ditemukan. Restart tidak dijalankan." -ForegroundColor Red
+        return
+    }
+
+    try {
+        Start-Process -FilePath $shutdownPath -ArgumentList "/r /f /t 0" -WindowStyle Hidden -ErrorAction Stop
+        Write-Host "Perintah restart paksa telah dikirim ke Windows." -ForegroundColor Green
+    } catch {
+        Write-Host "Gagal mengirim perintah restart: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
 function Show-Menu {
     Clear-Host
     Write-Host "====================================================" -ForegroundColor Cyan
     Write-Host " WINDOWS 10 RAM & RESPONSIVENESS TOOLKIT" -ForegroundColor Cyan
     Write-Host " Target: Windows 10 22H2 x64 | PowerShell 5.1"
     Write-Host "====================================================" -ForegroundColor Cyan
-    Write-Host " 1. Ringkasan penggunaan RAM"
-    Write-Host " 2. List semua service yang sedang Running"
-    Write-Host " 3. List service opsional yang aman dievaluasi"
-    Write-Host " 4. Disable service opsional yang dipilih"
-    Write-Host " 5. Ubah service opsional terpilih ke Manual"
-    Write-Host " 6. List aplikasi UWP / status background"
-    Write-Host " 7. Batasi aplikasi background untuk akun ini"
-    Write-Host " 8. List aplikasi Startup"
-    Write-Host " 9. List 10 kelompok proses pemakai RAM terbesar"
-    Write-Host "10. Terapkan optimasi aman (background, Game DVR, visual, pagefile)"
-    Write-Host "11. Aktifkan System Managed Pagefile"
-    Write-Host "12. Restore baseline sebelum optimasi"
-    Write-Host "13. Export laporan sistem"
-    Write-Host "14. Buka folder backup dan log"
-    Write-Host "15. List aplikasi bawaan yang dapat dievaluasi untuk uninstall"
-    Write-Host "16. Uninstall aplikasi terpilih (UWP / Appx)"
-    Write-Host "17. Audit Microsoft Edge dan WebView2 (read-only)"
-    Write-Host "18. Laporan singkat kesehatan service dan konsumsi RAM"
-    Write-Host "19. Uninstall Microsoft Edge (advanced / berisiko)"
-    Write-Host "20. Atur Virtual Memory custom (SSD C: only, 1000-24000 MB)"
-    Write-Host "21. Tools Tambahan (diagnostik lanjutan)"
+    Write-Host " 1. Ringkasan RAM"
+    Write-Host " 2. Service aktif"
+    Write-Host " 3. Service opsional"
+    Write-Host " 4. Nonaktifkan service"
+    Write-Host " 5. Set service Manual"
+    Write-Host " 6. Aplikasi UWP"
+    Write-Host " 7. Atur background UWP"
+    Write-Host " 8. Aplikasi startup"
+    Write-Host " 9. Proses pemakai RAM"
+    Write-Host "10. Optimasi aman"
+    Write-Host "11. Pagefile otomatis"
+    Write-Host "12. Pulihkan baseline"
+    Write-Host "13. Laporan sistem"
+    Write-Host "14. Folder backup dan log"
+    Write-Host "15. Katalog aplikasi bawaan"
+    Write-Host "16. Hapus aplikasi UWP"
+    Write-Host "17. Audit Edge / WebView2"
+    Write-Host "18. Kesehatan sistem"
+    Write-Host "19. Hapus Microsoft Edge"
+    Write-Host "20. Atur pagefile SSD"
+    Write-Host "21. Tools tambahan"
+    Write-Host "22. Restart paksa Windows"
     Write-Host " 0. Keluar"
     Write-Host "----------------------------------------------------"
 }
@@ -1155,6 +1181,7 @@ do {
         "19" { Uninstall-MicrosoftEdgeAdvanced; Pause-Menu }
         "20" { Set-CustomPagefileOnC; Pause-Menu }
         "21" { Show-AdditionalToolsMenu }
+        "22" { Restart-WindowsForce; Pause-Menu }
         "0"  { $exitRequested = $true }
         default { Write-Host "Pilihan tidak valid." -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
     }

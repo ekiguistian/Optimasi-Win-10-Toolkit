@@ -503,12 +503,60 @@ function Apply-SafeOptimizations {
     Write-Host "Sebagian pengaturan memerlukan sign out atau restart. Persentase sukses menghitung tindakan konfigurasi, bukan persentase peningkatan performa." -ForegroundColor Yellow
 }
 
+function Get-OsDiskMediaAssessment {
+    param([Parameter(Mandatory=$true)][int]$DiskNumber)
+
+    $disk = Get-Disk -Number $DiskNumber -ErrorAction Stop
+    $physicalDisk = $null
+    $win32Disk = $null
+    $evidence = @()
+
+    try {
+        $physicalDisk = @(Get-PhysicalDisk -ErrorAction Stop |
+            Where-Object { [string]$_.DeviceId -eq [string]$DiskNumber } |
+            Select-Object -First 1)
+        if ($physicalDisk.Count -eq 0) { $physicalDisk = $null } else { $physicalDisk = $physicalDisk[0] }
+    } catch {}
+
+    try {
+        $win32Disk = Get-CimInstance Win32_DiskDrive -Filter "Index = $DiskNumber" -ErrorAction Stop
+    } catch {}
+
+    $diskMedia = [string]$disk.MediaType
+    $physicalMedia = if ($physicalDisk) { [string]$physicalDisk.MediaType } else { "Unavailable" }
+    $model = if ($win32Disk) { [string]$win32Disk.Model } elseif ($physicalDisk) { [string]$physicalDisk.FriendlyName } else { [string]$disk.FriendlyName }
+    $busType = if ($physicalDisk) { [string]$physicalDisk.BusType } else { [string]$disk.BusType }
+
+    if ($diskMedia -eq "SSD") { $evidence += "Get-Disk.MediaType=SSD" }
+    if ($physicalMedia -eq "SSD") { $evidence += "Get-PhysicalDisk.MediaType=SSD" }
+    if ($model -match '(?i)\bSSD\b|Solid State') { $evidence += "Model mengandung identitas SSD: $model" }
+
+    $positiveHdd = ($diskMedia -eq "HDD") -or ($physicalMedia -eq "HDD") -or
+        ($model -match '(?i)\bHDD\b|Hard.?Disk Drive|5400\s?RPM|7200\s?RPM')
+    $confirmedSsd = ($diskMedia -eq "SSD") -or ($physicalMedia -eq "SSD") -or
+        ($model -match '(?i)\bSSD\b|Solid State')
+
+    [pscustomobject]@{
+        Disk = $disk
+        PhysicalDisk = $physicalDisk
+        Win32Disk = $win32Disk
+        Model = $model
+        BusType = $busType
+        DiskMediaType = $diskMedia
+        PhysicalMediaType = $physicalMedia
+        IsConfirmedSSD = $confirmedSsd
+        IsConfirmedHDD = $positiveHdd
+        Evidence = @($evidence)
+    }
+}
+
 function Set-CustomPagefileOnC {
     Write-Host ""
     Write-Host "========== CUSTOM VIRTUAL MEMORY / PAGEFILE ==========" -ForegroundColor Cyan
-    Write-Host "Pagefile hanya akan dibuat pada C:\pagefile.sys dan hanya jika disk C terdeteksi sebagai SSD." -ForegroundColor Yellow
+    Write-Host "Pagefile hanya akan dibuat pada C:\pagefile.sys." -ForegroundColor Yellow
+    Write-Host "Deteksi SSD menggunakan Get-Disk, Get-PhysicalDisk, dan identitas model perangkat." -ForegroundColor Yellow
+    Write-Host "Jika Windows melaporkan media Unspecified, Anda dapat mengonfirmasi tipe fisik secara manual." -ForegroundColor Yellow
     Write-Host "Pagefile bukan RAM fisik. Jika sering digunakan, performanya tetap jauh lebih lambat daripada RAM." -ForegroundColor Yellow
-    Write-Host "Jangan gunakan fitur ini pada HDD. Jika jenis disk tidak dapat dipastikan, proses akan dibatalkan." -ForegroundColor Yellow
 
     $rawSize = Read-Host "Masukkan ukuran pagefile tetap dalam MB (1000-24000)"
     $sizeMB = 0
@@ -519,12 +567,35 @@ function Set-CustomPagefileOnC {
 
     try {
         $partition = Get-Partition -DriveLetter C -ErrorAction Stop
-        $osDisk = Get-Disk -Number $partition.DiskNumber -ErrorAction Stop
-        $mediaType = [string]$osDisk.MediaType
-        if ($mediaType -ne "SSD") {
-            Write-Host "DITOLAK: disk C terdeteksi sebagai '$mediaType', bukan SSD yang terkonfirmasi." -ForegroundColor Red
-            Write-Host "Tidak ada perubahan dilakukan. Periksa jenis media secara manual jika disk menggunakan RAID/Storage Controller." -ForegroundColor Yellow
+        $assessment = Get-OsDiskMediaAssessment -DiskNumber $partition.DiskNumber
+        $osDisk = $assessment.Disk
+
+        Write-Host ""
+        Write-Host "Informasi disk sistem:" -ForegroundColor Cyan
+        [pscustomobject]@{
+            "Disk Number" = $osDisk.Number
+            "Model" = $assessment.Model
+            "Bus Type" = $assessment.BusType
+            "Get-Disk MediaType" = $assessment.DiskMediaType
+            "Get-PhysicalDisk MediaType" = $assessment.PhysicalMediaType
+            "Bukti SSD" = if ($assessment.Evidence.Count -gt 0) { $assessment.Evidence -join "; " } else { "Tidak ada bukti otomatis yang cukup" }
+        } | Format-List
+
+        if ($assessment.IsConfirmedHDD) {
+            Write-Host "DITOLAK: salah satu sumber identifikasi menunjukkan HDD. Tidak ada perubahan dilakukan." -ForegroundColor Red
             return
+        }
+
+        if (-not $assessment.IsConfirmedSSD) {
+            Write-Host "Windows tidak dapat memastikan jenis media disk ini (sering terjadi pada SSD SATA/AHCI tertentu)." -ForegroundColor Yellow
+            Write-Host "Periksa model disk dan pastikan secara fisik bahwa disk sistem C memang SSD, bukan HDD." -ForegroundColor Yellow
+            Write-Host "Bus SATA saja bukan bukti bahwa disk adalah SSD." -ForegroundColor Yellow
+            $manualConfirm = Read-Host "Jika Anda sudah memastikan disk ini SSD, ketik CONFIRM SSD"
+            if ($manualConfirm -cne "CONFIRM SSD") {
+                Write-Host "DITOLAK: jenis media belum dikonfirmasi. Tidak ada perubahan dilakukan." -ForegroundColor Red
+                return
+            }
+            Write-Log "User manually confirmed OS disk #$($osDisk.Number) as SSD because Windows media type was Unspecified. Model=$($assessment.Model); Bus=$($assessment.BusType)."
         }
 
         $volume = Get-Volume -DriveLetter C -ErrorAction Stop
@@ -541,8 +612,9 @@ function Set-CustomPagefileOnC {
 
         Write-Host "Ringkasan perubahan:" -ForegroundColor Cyan
         [pscustomobject]@{
-            "Disk C" = $osDisk.FriendlyName
-            "Jenis media" = $mediaType
+            "Disk C" = $assessment.Model
+            "Jenis media" = if ($assessment.IsConfirmedSSD) { "SSD (terdeteksi otomatis)" } else { "SSD (dikonfirmasi manual oleh pengguna)" }
+            "Bus" = $assessment.BusType
             "Ruang kosong C" = "$freeMB MB"
             "Ukuran pagefile baru" = "$sizeMB MB (Initial = Maximum)"
             "Lokasi baru" = "C:\pagefile.sys"

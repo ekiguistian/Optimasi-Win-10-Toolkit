@@ -3,6 +3,7 @@ setlocal EnableExtensions
 title Optimasi Windows 10 Toolkit
 
 set "TOOLKIT_ROOT=%~dp0"
+set "TOOLKIT_LAUNCHER=%~f0"
 set "PS_SCRIPT=%TOOLKIT_ROOT%scripts\Optimasi-Windows-10-Toolkit.ps1"
 
 if not exist "%PS_SCRIPT%" (
@@ -13,11 +14,18 @@ if not exist "%PS_SCRIPT%" (
     exit /b 2
 )
 
+where powershell.exe >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Windows PowerShell tidak ditemukan pada sistem ini.
+    pause
+    exit /b 3
+)
+
 :: Request elevation automatically when not running as Administrator.
 fltmc >nul 2>&1
 if errorlevel 1 (
     echo Meminta hak Administrator melalui UAC...
-    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath '%~f0' -Verb RunAs -ErrorAction Stop; exit 0 } catch { exit 1 }"
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath $env:TOOLKIT_LAUNCHER -Verb RunAs -ErrorAction Stop; exit 0 } catch { exit 1 }"
     if errorlevel 1 (
         echo [ERROR] Permintaan UAC gagal atau dibatalkan.
         pause

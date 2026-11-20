@@ -4,8 +4,6 @@ Toolkit berbasis **Windows PowerShell 5.1** untuk membantu pengguna laptop/PC de
 
 > **Status: versi awal / experimental.** Belum dinyatakan siap produksi. Uji pada perangkat cadangan atau setelah membuat System Restore Point. Baca script dan pahami setiap perubahan sebelum menjalankan fitur yang mengubah konfigurasi Windows.
 
-> **Status integrasi launcher:** file BAT dengan auto-UAC dan dokumentasi pengguna sudah masuk ke branch `main`. Namun, file engine `scripts/Optimasi-Windows-10-Toolkit.ps1` belum tersedia di branch tersebut. Launcher akan menampilkan error file tidak ditemukan sampai engine ditambahkan. Jangan distribusikan sebagai paket siap pakai sebelum file engine dan pengujian Windows PowerShell 5.1 selesai.
-
 ## Tujuan proyek
 
 - Mengidentifikasi proses, service, aplikasi UWP, dan program startup yang menggunakan sumber daya.
@@ -37,12 +35,12 @@ Script utama: `scripts/Optimasi-Windows-10-Toolkit.ps1`
 | 14 | Folder backup dan log | Membuka direktori penyimpanan baseline dan log toolkit. |
 | 15 | Katalog aplikasi bawaan | Menampilkan kandidat aplikasi UWP konsumen yang dapat dievaluasi sebelum uninstall. |
 | 16 | Uninstall aplikasi UWP | Menghapus aplikasi yang dipilih untuk akun pengguna saat ini. Backup baseline tidak menyimpan installer dan tidak dapat memasang ulang aplikasi. |
-| 17 | Uninstall Microsoft Edge (advanced) | Memanggil uninstaller bawaan Edge jika tersedia. Eksperimental, tidak direkomendasikan sebagai optimasi RAM, dan tidak dijamin berhasil. |
+| 17 | Audit Edge dan WebView2 | Memeriksa keberadaan Microsoft Edge dan WebView2 Runtime tanpa mengubah atau menghapus komponennya. |
 | 0 | Keluar | Menutup toolkit. |
 
 ## Persyaratan
 
-- Windows 10, target pengembangan saat ini Windows 10 Pro 22H2 x64.
+- Windows 10 22H2 x64 (target pengembangan; kompatibilitas edisi lain belum diuji).
 - Windows PowerShell **5.1** (`powershell.exe`), bukan persyaratan PowerShell 7.
 - Menjalankan script dengan hak **Administrator**.
 - Koneksi internet hanya diperlukan untuk mengunduh repository; toolkit tidak membutuhkan koneksi internet untuk menjalankan fungsi lokal.
@@ -69,20 +67,20 @@ cd Optimasi-Win-10-Toolkit
 
 ### Jalankan toolkit (direkomendasikan)
 
-1. Pastikan folder repository sudah diekstrak secara utuh; jangan memindahkan file BAT terpisah dari folder `scripts`.
-2. Jalankan `Optimasi-Win-10-Toolkit.bat` dengan double-click. Launcher akan memeriksa hak Administrator dan meminta persetujuan UAC secara otomatis jika belum elevated.
+1. Ekstrak seluruh repository; jangan memindahkan file BAT terpisah dari folder `scripts`.
+2. Jalankan `Optimasi-Win-10-Toolkit.bat` dengan double-click. Jika belum berjalan sebagai Administrator, launcher meminta persetujuan UAC secara otomatis.
 3. Alternatifnya, klik kanan file BAT lalu pilih **Run as administrator**.
-4. Setelah UAC disetujui, launcher membuka Windows PowerShell 5.1 dan menjalankan script utama.
+4. Setelah UAC disetujui, launcher menjalankan script melalui Windows PowerShell 5.1.
 
-Launcher menggunakan `powershell.exe -ExecutionPolicy Bypass` hanya untuk proses toolkit. Kebijakan eksekusi sistem tidak diubah secara permanen. Jika permintaan UAC dibatalkan, toolkit tidak dijalankan.
+Launcher menggunakan `-ExecutionPolicy Bypass` hanya untuk proses PowerShell toolkit. Kebijakan eksekusi sistem tidak diubah secara permanen. Jika UAC dibatalkan, toolkit tidak dijalankan.
 
 ### Jalankan langsung melalui PowerShell (opsional)
 
-Buka **Windows PowerShell 5.1** sebagai Administrator, masuk ke direktori repository, lalu jalankan:
+Buka **Windows PowerShell 5.1** sebagai Administrator, lalu jalankan:
 
 ```powershell
 Set-Location "C:\Tools\Optimasi-Win-10-Toolkit"
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\scripts\Optimasi-Windows-10-Toolkit.ps1"
+.\scripts\Optimasi-Windows-10-Toolkit.ps1
 ```
 
 Jika file diblokir oleh Windows, periksa sumber dan isi file terlebih dahulu. Setelah yakin file tepercaya, buka blokir file secara spesifik:
@@ -92,7 +90,6 @@ Unblock-File .\scripts\Optimasi-Windows-10-Toolkit.ps1
 ```
 
 Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan keamanan secara permanen hanya untuk menjalankan toolkit. Kebijakan Group Policy organisasi dapat tetap membatasi eksekusi script.
-
 ## Alur penggunaan yang disarankan
 
 1. Buat System Restore Point dan backup data penting.
@@ -117,7 +114,7 @@ Simpan salinan direktori ini sebelum eksperimen lanjutan. Periksa log setelah me
 
 ## Batasan pemulihan
 
-Baseline toolkit bukan image/backup penuh Windows. Restore hanya mencakup item yang secara eksplisit dicatat, yaitu sebagian pengaturan registry, service yang dikelola toolkit, dan konfigurasi pagefile.
+Baseline toolkit bukan image/backup penuh Windows. Restore hanya mencakup item yang secara eksplisit dicatat, yaitu sebagian pengaturan registry, service yang dikelola toolkit, status pagefile otomatis, serta ukuran dan lokasi pagefile manual yang berhasil dibaca saat baseline dibuat.
 
 Restore **tidak** membatalkan uninstall aplikasi UWP, mengembalikan installer yang terhapus, memulihkan semua pengaturan startup, scheduled task, driver, aplikasi pihak ketiga, atau perubahan yang dibuat tool lain. Penghapusan Edge juga tidak dipulihkan oleh baseline.
 
@@ -130,7 +127,7 @@ Toolkit tidak dimaksudkan untuk menonaktifkan komponen inti Windows. Jangan meno
 - Jangan menonaktifkan service hanya berdasarkan nama atau asumsi bahwa service tersebut tidak diperlukan.
 - Jangan menggunakan RAM cleaner atau registry cleaner sebagai pengganti diagnosis.
 - Uninstall UWP berlaku untuk akun saat ini; kemampuan reinstall bergantung pada ketersediaan paket dan sumber instalasi.
-- Uninstall Edge bersifat advanced/eksperimental dan bukan rekomendasi penghematan RAM.
+- Toolkit tidak menyediakan fitur uninstall Edge. Menu 17 hanya melakukan audit read-only untuk Edge dan WebView2 karena keduanya dapat menjadi dependensi Windows dan aplikasi lain.
 - Pengaturan background UWP tidak menghentikan semua aplikasi desktop atau service pihak ketiga.
 
 Detail tambahan: [docs/SAFETY.md](docs/SAFETY.md).

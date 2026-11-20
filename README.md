@@ -110,7 +110,13 @@ Jangan mengubah Execution Policy menjadi `Unrestricted` atau mengubah kebijakan 
 10. Gunakan menu **22** hanya jika memang perlu restart paksa. Simpan semua pekerjaan terlebih dahulu karena aplikasi akan ditutup tanpa dialog penyimpanan.
 
 
-### Restart paksa Windows (menu 22)\n\n- Menu ini menjalankan `shutdown.exe /r /f /t 0` setelah pengguna mengetik `RESTART FORCE`.\n- Parameter `/f` memaksa aplikasi menutup dan dapat menyebabkan data yang belum disimpan hilang. Simpan pekerjaan terlebih dahulu.\n- Jangan gunakan sebagai pengganti restart normal bila aplikasi masih memiliki pekerjaan terbuka.\n\n### Pemeriksaan svchost.exe (menu 21 → 1)
+### Restart paksa Windows (menu 22)
+
+- Menu ini menjalankan `shutdown.exe /r /f /t 0` setelah pengguna mengetik `RESTART FORCE`.
+- Parameter `/f` memaksa aplikasi menutup dan dapat menyebabkan data yang belum disimpan hilang. Simpan pekerjaan terlebih dahulu.
+- Jangan gunakan sebagai pengganti restart normal bila aplikasi masih memiliki pekerjaan terbuka.
+
+### Pemeriksaan svchost.exe (menu 21 → 1)
 
 - Daftar proses `svchost.exe` diurutkan berdasarkan Working Set dan menampilkan PID, RAM (MB), jumlah layanan, nama layanan, serta penanda indikatif.
 - Masukkan PID untuk melihat executable path, command line, dan rincian nama layanan, display name, status, serta startup type.

@@ -7,3 +7,7 @@
 - Added Windows PowerShell parse validation and PSScriptAnalyzer CI workflow.
 - Packaged the interactive toolkit recovered from the latest intact project artifact.
 - Fixed menu exit handling so option 0 exits the loop.
+- Added a system health report for selected core services, Defender status when available, and top RAM-consuming process groups.
+- Added optimization action success percentage and immediate before/after RAM usage estimate.
+- Excluded protected/non-removable Appx packages such as XboxGameCallableUI from the uninstall catalog.
+- Added an explicit-confirmation advanced Edge uninstaller that preserves WebView2 and documents restore limitations.

@@ -1,0 +1,7 @@
+project_name: Optimasi Windows 10 Toolkit
+repository_suggested_name: optimasi-windows-10-toolkit
+language: PowerShell
+minimum_powershell: 5.1
+target_os: Windows 10 Pro 22H2
+license: MIT
+status: experimental

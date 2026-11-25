@@ -229,3 +229,11 @@ Dukungan reguler Windows 10 berakhir pada **14 Oktober 2025**. Toolkit ini tidak
 ## Referensi
 
 - [Microsoft Learn — about_Execution_Policies (Windows PowerShell 5.1)](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1)
+
+## Dukungan anda berarti bagi saya untuk mengembangkan dan menemukan lebih banyak inspirasi.
+
+[Traktir Eki Segelas Kopi](https://app.midtrans.com/payment-links/b45ec2c9-80f7-4dd8-b2e9-e18d430d192e-7l5NTR4t)
+
+<a href="https://app.midtrans.com/payment-links/b45ec2c9-80f7-4dd8-b2e9-e18d430d192e-7l5NTR4t">
+  <img src="./G025119549_Payment_Link_b45ec2c9-80f7-4dd8-b2e9-e18d430d192e-7l5NTR4t.png" alt="QR Traktir Eki Segelas Kopi" width="320" />
+</a>
